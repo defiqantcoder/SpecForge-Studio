@@ -76,7 +76,7 @@ describe('Electron Main Security', () => {
 
   const mockEvent = {
     senderFrame: {
-      url: 'file:///app/dist/index.html'
+      url: require('url').pathToFileURL(require('path').resolve(__dirname, '../../dist/index.html')).href
     }
   };
 
