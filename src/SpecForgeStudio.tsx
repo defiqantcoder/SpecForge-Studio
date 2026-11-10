@@ -44,11 +44,12 @@ import {
   KeyRound,
   Upload,
   HardDrive
-} from 'lucide-react';
+, Folder, Bookmark } from 'lucide-react';
 import type { DesktopAppInfo, GeminiSettingsInfo, SavedBlueprint } from './types/desktop';
 
 const LOCAL_DRAFT_STORAGE_KEY = 'specforge-studio:draft-v1';
 const LOCAL_BLUEPRINTS_STORAGE_KEY = 'specforge-studio:blueprints-v1';
+const LOCAL_PRESETS_STORAGE_KEY = 'specforge_saved_presets_v1';
 
 // ============================================================================
 // DUMMY-PROOF HELPER CHIPS & FILE PLACEMENT INSTRUCTIONS
@@ -566,240 +567,6 @@ function ExpandedTextHighlight({
   );
 }
 
-export type AutoFillSectionId =
-  | 'role_objective'
-  | 'context_stack'
-  | 'constraints'
-  | 'task_steps'
-  | 'verification'
-  | 'agentsmd'
-  | 'sdd_constitution'
-  | 'sdd_spec'
-  | 'sdd_tasks';
-
-/** Hover tooltip with info icon that explains a form setting in plain English. */
-function InfoTooltip({ text }: { text: string }) {
-  return (
-    <span
-      title={text}
-      className="group relative inline-flex items-center cursor-help text-slate-400 hover:text-indigo-300 transition shrink-0"
-    >
-      <Info className="w-3.5 h-3.5" aria-hidden="true" />
-      <span
-        role="tooltip"
-        aria-hidden="true"
-        className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-56 rounded-lg bg-slate-950 border border-indigo-500/40 px-2.5 py-1.5 text-[11px] font-normal normal-case tracking-normal text-slate-200 shadow-xl leading-snug"
-      >
-        {text}
-      </span>
-    </span>
-  );
-}
-
-/** Context-aware section-level AI Auto-Fill button. */
-function SectionAutoFillButton({
-  sectionId,
-  activeSection,
-  onAutoFill
-}: {
-  sectionId: AutoFillSectionId;
-  activeSection: AutoFillSectionId | null;
-  onAutoFill: (id: AutoFillSectionId) => void;
-}) {
-  const isLoading = activeSection === sectionId;
-  return (
-    <button
-      type="button"
-      data-testid={`autofill-section-btn-${sectionId}`}
-      disabled={isLoading}
-      onClick={() => onAutoFill(sectionId)}
-      className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs font-medium text-indigo-200 flex items-center gap-1 disabled:opacity-50 transition"
-    >
-      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-      <span>{isLoading ? 'Auto-Filling...' : '✨ Auto-Fill Section'}</span>
-    </button>
-  );
-}
-
-/** Soft amber highlight card for reviewing section-level AI auto-fill suggestions. */
-function SectionAutoFillHighlight({
-  sectionId,
-  text,
-  onClear
-}: {
-  sectionId: AutoFillSectionId;
-  text: string;
-  onClear: () => void;
-}) {
-  return (
-    <div
-      data-testid={`section-autofill-highlight-${sectionId}`}
-      className="rounded-xl bg-amber-500/10 border border-amber-400/40 p-2.5 text-xs text-amber-100 space-y-1.5"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold text-amber-300 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span>AI Section Auto-Fill Applied (highlighted for review)</span>
-        </span>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onClear}
-            className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-[11px] font-semibold text-amber-200 transition"
-          >
-            Accept All
-          </button>
-          <button
-            type="button"
-            onClick={onClear}
-            className="px-2 py-0.5 rounded bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-[11px] text-slate-300 transition"
-          >
-            Clear Highlight
-          </button>
-        </div>
-      </div>
-      <div className="bg-amber-500/15 border-l-2 border-amber-400 px-2 py-1 rounded whitespace-pre-wrap text-[11px] text-amber-50">
-        {text}
-      </div>
-    </div>
-  );
-}
-
-/** Deterministic offline section-level smart auto-fill generator tailored to the user's main idea. */
-export function buildOfflineSectionPatch(
-  sectionId: AutoFillSectionId,
-  plainIdea: string,
-  userPersona: string,
-  platform: string,
-  currentForm: Record<string, any>
-): { patch: Record<string, any>; summary: string } {
-  const ideaSnippet = (plainIdea || 'Build a reliable, user-friendly application workflow')
-    .trim()
-    .split('\n')[0]
-    .slice(0, 140);
-  const personaSnippet = (userPersona || 'end users and team members').trim();
-
-  switch (sectionId) {
-    case 'role_objective': {
-      const rolePersona =
-        platform === 'mobile'
-          ? 'Senior React Native (New Architecture) & Offline-First Mobile Architect'
-          : platform === 'desktop'
-            ? 'Senior Rust Systems & Tauri v2 / Electron Security Architect'
-            : 'Senior Full-Stack Next.js 15 & React 19 Principal Engineer';
-      const roleFocus =
-        platform === 'mobile'
-          ? '60fps native navigation, optimistic offline queues, and strict schema validation'
-          : platform === 'desktop'
-            ? 'Least-privilege IPC capabilities, path validation, and local SQLite persistence'
-            : 'React 19 Server/Client boundaries, URL-synced filters, and accessible keyboard UX';
-      const objective = `Architect and ship: ${ideaSnippet}`;
-      const observableOutcome = `So that ${personaSnippet} can complete their workflow with instant visual feedback, clear validation states, and zero unhandled runtime errors.`;
-      return {
-        patch: { rolePersona, roleFocus, objective, observableOutcome },
-        summary: `Persona: ${rolePersona}\nFocus: ${roleFocus}\nObjective: ${objective}\nOutcome: ${observableOutcome}`
-      };
-    }
-    case 'context_stack': {
-      const pinnedStack =
-        platform === 'mobile'
-          ? 'React Native 0.76+ (Fabric/TurboModules), TypeScript 5.8, Expo Router v4, Zod, Vitest'
-          : platform === 'desktop'
-            ? 'Rust 2024 / Tauri v2 (or Electron 35+), React 19, TypeScript 5.8, Tailwind CSS v4, Vitest'
-            : 'Next.js 15 (App Router), React 19, TypeScript 5.8 (strict), Tailwind CSS v4, Zod, Vitest';
-      const unapprovedLibs =
-        'moment.js, untyped fetch wrappers, inline styles, unvalidated raw SQL strings';
-      const visualContext = `Clean, high-contrast workspace tailored for ${personaSnippet} with keyboard shortcuts and responsive layout.`;
-      return {
-        patch: { pinnedStack, unapprovedLibs, visualContext },
-        summary: `Pinned Stack: ${pinnedStack}\nRejected Patterns: ${unapprovedLibs}\nVisual Context: ${visualContext}`
-      };
-    }
-    case 'constraints': {
-      const stateAndDataRules = `- Validate all external inputs at module boundaries using strict schemas for: ${ideaSnippet}.\n- Keep server/persistence state separate from ephemeral UI state; use URL or durable local storage for user filters.`;
-      const runtimeAndSecurityLimits = `- EnforceWCAG 2.2 AA keyboard navigation, focus rings, and explicit loading/error states for ${personaSnippet}.\n- Sanitize all file paths and user payloads; never expose secrets or internal stack traces in the UI.`;
-      return {
-        patch: { stateAndDataRules, runtimeAndSecurityLimits },
-        summary: `${stateAndDataRules}\n${runtimeAndSecurityLimits}`
-      };
-    }
-    case 'task_steps': {
-      const taskSteps = [
-        `1. Define strict TypeScript interfaces and validation schemas for: ${ideaSnippet}`,
-        `2. Implement the core data & state layer with optimistic feedback and deterministic error recovery`,
-        `3. Build the accessible UI component tree for ${personaSnippet} covering Loading, Empty, Error, Offline, Disabled, and Success states`,
-        `4. Add unit and integration tests verifying happy-path and edge-case behavior`
-      ];
-      return {
-        patch: { taskSteps },
-        summary: taskSteps.join('\n')
-      };
-    }
-    case 'verification': {
-      const verificationCommands = 'npm run typecheck && npm run lint && npm test -- --run';
-      const deliverableFormat =
-        '1. Concise architectural summary\n2. Production-ready implementation diffs\n3. Verification test suite output';
-      return {
-        patch: { verificationCommands, deliverableFormat },
-        summary: `Verification Commands: ${verificationCommands}\nDeliverable Contract:\n${deliverableFormat}`
-      };
-    }
-    case 'agentsmd': {
-      const agentsTechStack = `- Primary Goal: ${ideaSnippet}\n- Target Users: ${personaSnippet}\n- Stack: TypeScript 5.8 (strict), React 19, Tailwind CSS v4, Vitest`;
-      const agentsCodeStyle = `- Prefer small, pure functions and explicit return types.\n- Enforce accessible roles/labels and deterministic state transitions.\n- Run typecheck and unit tests after every slice.`;
-      return {
-        patch: { agentsTechStack, agentsCodeStyle },
-        summary: `${agentsTechStack}\n${agentsCodeStyle}`
-      };
-    }
-    case 'sdd_constitution': {
-      const sddConstitution = `1. Every vertical slice for "${ideaSnippet}" must ship with automated tests.\n2. All user inputs from ${personaSnippet} must be validated with clear, human-readable error states.\n3. No unapproved dependencies or silent catch blocks are permitted.`;
-      return {
-        patch: { sddConstitution },
-        summary: sddConstitution
-      };
-    }
-    case 'sdd_spec': {
-      const sddSummary = `${ideaSnippet} — designed for ${personaSnippet} with full keyboard accessibility, fast feedback, and resilient error recovery.`;
-      const sddWhy = `Eliminates manual friction and inconsistent state handling for ${personaSnippet}.`;
-      const sddSuccessMetrics = `- 100% of core user flows pass automated verification tests.\n- Zero unhandled runtime errors across Loading, Empty, Error, and Success states.`;
-      return {
-        patch: { sddSummary, sddWhy, sddSuccessMetrics },
-        summary: `Summary: ${sddSummary}\nRationale: ${sddWhy}\nSuccess Metrics:\n${sddSuccessMetrics}`
-      };
-    }
-    case 'sdd_tasks': {
-      const existingSlices = Array.isArray(currentForm.sddSlices) ? currentForm.sddSlices : [];
-      const updatedSlices =
-        existingSlices.length > 0
-          ? existingSlices.map((sl: any, idx: number) =>
-              idx === 0
-                ? {
-                    ...sl,
-                    name: `End-to-End Slice: ${ideaSnippet.slice(0, 55)}`,
-                    test: `Integration test verifying ${personaSnippet} can complete the primary flow and recover from errors`
-                  }
-                : sl
-            )
-          : [
-              {
-                id: 'SLICE-01',
-                mode: 'HITL',
-                name: `End-to-End Slice: ${ideaSnippet.slice(0, 55)}`,
-                schema: 'Core TypeScript domain models & validation schema',
-                api: 'State controller & persistence service handler',
-                ui: 'Accessible UI view with Loading, Empty, Error, and Success states',
-                test: `Integration test verifying ${personaSnippet} can complete the primary flow`
-              }
-            ];
-      return {
-        patch: { sddSlices: updatedSlices },
-        summary: `Updated Slice 1: ${updatedSlices[0].name}\nTest Gate: ${updatedSlices[0].test}`
-      };
-    }
-  }
-}
-
 /** Collapsible, tooltip-friendly plain-language explanation card for Intermediate Mode. */
 function JargonTranslationCard({
   term,
@@ -834,6 +601,59 @@ function JargonTranslationCard({
   );
 }
 
+const DEFAULT_FORM = {
+      ...PRESETS.web_nextjs,
+      // Platform-specific extra config fields
+      pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
+      desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
+      // Antigravity Rule Config
+      agyRuleName: 'architecture-boundaries',
+      agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
+      agyGlobs: '*.tsx, src/features/**/*.ts',
+      agyRuleDescription:
+        'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
+      // Antigravity Skill Config
+      agySkillName: 'verify-vertical-slice',
+      agySkillDescription:
+        'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
+      // Copilot Path-Specific Instruction Config
+      copilotInstructionName: 'domain-boundaries',
+      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
+      copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
+      // Copilot Custom Agent Config
+      copilotAgentName: 'implementation-planner',
+      copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
+      // Monorepo Nested AGENTS.md Config
+      enableNestedAgents: true,
+      nestedSubprojectPath: 'apps/mobile',
+      nestedCommandOverrides:
+        'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
+      nestedLocalConstraints:
+        'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
+    };
+
+// Stored JSON is untrusted; partial forms are supported, but known fields must
+// retain their established types before they can reach rendering or loading.
+function matchesDefaults(value: unknown, defaults: unknown): boolean {
+  if (Array.isArray(defaults)) return Array.isArray(value) && value.every(item => typeof item === 'string');
+  if (defaults && typeof defaults === 'object') {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value)) &&
+      Object.entries(value as Record<string, unknown>).every(([key, field]) =>
+        !(key in defaults) || matchesDefaults(field, (defaults as Record<string, unknown>)[key]));
+  }
+  return typeof value === typeof defaults;
+}
+
+function isValidSavedPreset(item: any): boolean {
+  return Boolean(item && typeof item === 'object' &&
+    typeof item.id === 'string' && item.id.trim() &&
+    typeof item.name === 'string' &&
+    (item.updatedAt === undefined || typeof item.updatedAt === 'number') &&
+    (item.platform === undefined || typeof item.platform === 'string') &&
+    (item.agent === undefined || typeof item.agent === 'string') &&
+    matchesDefaults(item.form, DEFAULT_FORM));
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
@@ -850,11 +670,6 @@ export default function SpecForgeStudio() {
   const [expandingField, setExpandingField] = useState<ExpandableFieldKey | null>(null);
   const [expandedHighlights, setExpandedHighlights] = useState<
     Partial<Record<ExpandableFieldKey, string>>
-  >({});
-  // Section-level AI Auto-Fill loading & visual highlight state
-  const [autoFillingSection, setAutoFillingSection] = useState<AutoFillSectionId | null>(null);
-  const [sectionHighlights, setSectionHighlights] = useState<
-    Partial<Record<AutoFillSectionId, string>>
   >({});
   // Mobile view switcher ('editor' | 'preview') for small screens
   const [mobilePane, setMobilePane] = useState('editor');
@@ -892,6 +707,46 @@ export default function SpecForgeStudio() {
   // Desktop & Local Blueprint Storage State
   const [desktopInfo, setDesktopInfo] = useState<DesktopAppInfo | null>(null);
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
+  const [presetsModalOpen, setPresetsModalOpen] = useState(false);
+  const [savedPresets, setSavedPresets] = useState<any[]>([]);
+  const [presetNameInput, setPresetNameInput] = useState('');
+  const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!presetsModalOpen) return;
+    const dialog = presetsDialogRef.current!;
+    const trigger = document.activeElement as HTMLElement | null;
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), [tabindex="0"]'
+    ));
+    const focusInside = () => (focusable()[0] || dialog).focus();
+    focusInside();
+    const onFocus = (event: FocusEvent) => {
+      if (!dialog.contains(event.target as Node)) focusInside();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setPresetsModalOpen(false);
+      } else if (event.key === 'Tab') {
+        const items = focusable();
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (!items.length || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last || dialog : first || dialog).focus();
+        }
+      }
+    };
+    document.addEventListener('focusin', onFocus);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('focusin', onFocus);
+      document.removeEventListener('keydown', onKey);
+      trigger?.focus();
+    };
+  }, [presetsModalOpen]);
+
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
@@ -920,36 +775,7 @@ export default function SpecForgeStudio() {
 
   // Core Form State initialized from saved draft or Web Next.js 15 preset
   const [form, setForm] = useState<any>(() => {
-    const defaultForm = {
-      ...PRESETS.web_nextjs,
-      // Platform-specific extra config fields
-      pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
-      desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
-      // Antigravity Rule Config
-      agyRuleName: 'architecture-boundaries',
-      agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
-      agyGlobs: '*.tsx, src/features/**/*.ts',
-      agyRuleDescription:
-        'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
-      // Antigravity Skill Config
-      agySkillName: 'verify-vertical-slice',
-      agySkillDescription:
-        'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
-      // Copilot Path-Specific Instruction Config
-      copilotInstructionName: 'domain-boundaries',
-      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
-      copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
-      // Copilot Custom Agent Config
-      copilotAgentName: 'implementation-planner',
-      copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
-      // Monorepo Nested AGENTS.md Config
-      enableNestedAgents: true,
-      nestedSubprojectPath: 'apps/mobile',
-      nestedCommandOverrides:
-        'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
-      nestedLocalConstraints:
-        'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
-    };
+
 
     try {
       const savedDraft = localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY);
@@ -957,10 +783,10 @@ export default function SpecForgeStudio() {
         const parsed = JSON.parse(savedDraft);
         if (parsed?.form) {
           return {
-            ...defaultForm,
+            ...DEFAULT_FORM,
             ...parsed.form,
             uiStates: {
-              ...defaultForm.uiStates,
+              ...DEFAULT_FORM.uiStates,
               ...(parsed.form.uiStates || {})
             }
           };
@@ -970,7 +796,7 @@ export default function SpecForgeStudio() {
       // ignore malformed draft
     }
 
-    return defaultForm;
+    return DEFAULT_FORM;
   });
 
   // AI Loading & Socratic /grill-me Interview State
@@ -996,6 +822,85 @@ export default function SpecForgeStudio() {
   // ============================================================================
   // DESKTOP INITIALIZATION & LOCAL BLUEPRINT STORAGE
   // ============================================================================
+
+  const handleSavePreset = () => {
+    if (!presetNameInput.trim()) return;
+    const newPreset = {
+      id: crypto.randomUUID(),
+      name: presetNameInput.trim(),
+      updatedAt: Date.now(),
+      platform: form.platform,
+      agent: form.agent,
+      form: { ...form }
+    };
+    const next = [newPreset, ...savedPresets];
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      setStatusMessageWithTimeout({ type: 'error', text: 'Could not save preset. Please check available storage and try again.' });
+      return;
+    }
+    setSavedPresets(next);
+    setPresetNameInput('');
+    setStatusMessageWithTimeout({
+      type: 'success',
+      text: `Saved preset "${newPreset.name}"!`
+    });
+  };
+
+  const handleLoadPreset = (preset: any) => {
+    setForm({
+      ...DEFAULT_FORM,
+      ...preset.form,
+      uiStates: { ...DEFAULT_FORM.uiStates, ...preset.form.uiStates }
+    });
+    setProjectTitle(preset.name);
+    setPresetsModalOpen(false);
+    setStatusMessageWithTimeout({
+      type: 'success',
+      text: `Loaded preset "${preset.name}"!`
+    });
+  };
+
+  const handleDeletePreset = (id: string) => {
+    const next = savedPresets.filter(p => p.id !== id);
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      setStatusMessageWithTimeout({ type: 'error', text: 'Could not delete preset. Please check available storage and try again.' });
+      return;
+    }
+    setSavedPresets(next);
+  };
+
+  const handleResetToDefaultPreset = () => {
+    setForm({
+      ...PRESETS.web_nextjs,
+      pointerStyle: '@path',
+      desktopFramework: 'tauri_v2',
+      agyRuleName: 'architecture-boundaries',
+      agyTrigger: 'always_on',
+      agyGlobs: '*.tsx, src/features/**/*.ts',
+      agyRuleDescription: 'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
+      agySkillName: 'verify-vertical-slice',
+      agySkillDescription: 'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
+      copilotInstructionName: 'domain-boundaries',
+      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
+      copilotExcludeAgent: 'none',
+      copilotAgentName: 'implementation-planner',
+      copilotAgentRole: 'planner',
+      enableNestedAgents: true,
+      nestedSubprojectPath: 'apps/mobile',
+      nestedCommandOverrides: 'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
+      nestedLocalConstraints: 'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
+    });
+    setPresetsModalOpen(false);
+    setStatusMessageWithTimeout({
+      type: 'success',
+      text: 'Reset to Web Next.js default preset!'
+    });
+  };
+
   const refreshBlueprints = async () => {
     if (window.desktopAPI) {
       const list = await window.desktopAPI.listBlueprints();
@@ -1018,6 +923,21 @@ export default function SpecForgeStudio() {
 
   useEffect(() => {
     void refreshBlueprints();
+    try {
+      const raw = localStorage.getItem(LOCAL_PRESETS_STORAGE_KEY);
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error('Expected an array of presets');
+        const valid = parsed.filter(isValidSavedPreset);
+        setSavedPresets(valid);
+        if (valid.length !== parsed.length) {
+          setStatusMessageWithTimeout({ type: 'error', text: 'Some saved presets were invalid and could not be loaded.' });
+        }
+      }
+    } catch {
+      setStatusMessageWithTimeout({ type: 'error', text: 'Could not read saved presets. Stored data may be malformed or storage unavailable.' });
+    }
+
     if (window.desktopAPI) {
       window.desktopAPI.getAppInfo().then(setDesktopInfo).catch(console.error);
       window.desktopAPI.getGeminiSettings().then(setGeminiSettings).catch(console.error);
@@ -1323,62 +1243,6 @@ export default function SpecForgeStudio() {
       }));
     } finally {
       setExpandingField(null);
-    }
-  };
-
-  const clearSectionHighlight = (sectionId: AutoFillSectionId) => {
-    setSectionHighlights((prev) => {
-      const next = { ...prev };
-      delete next[sectionId];
-      return next;
-    });
-  };
-
-  const handleAutoFillSection = async (sectionId: AutoFillSectionId) => {
-    setAutoFillingSection(sectionId);
-    try {
-      const fallback = buildOfflineSectionPatch(
-        sectionId,
-        form.plainIdea,
-        form.userPersona,
-        form.platform,
-        form
-      );
-      let patch = fallback.patch;
-      let summary = fallback.summary;
-      const canCallAI = Boolean(window.desktopAPI && geminiSettings.hasKey);
-
-      if (canCallAI) {
-        try {
-          const systemPrompt =
-            'You are a Principal Software Architect. Suggest a concise, production-ready summary of updates for the requested specification section based on the user idea.';
-          const userQuery = `Section: ${sectionId}\nIdea: ${form.plainIdea}\nUsers: ${form.userPersona}\nPlatform: ${form.platform}`;
-          const schema = {
-            type: 'OBJECT',
-            properties: {
-              summary: { type: 'STRING' }
-            },
-            required: ['summary']
-          };
-          const res = await callGeminiStructured(systemPrompt, userQuery, schema);
-          if (typeof res?.summary === 'string' && res.summary.trim()) {
-            summary = res.summary.trim();
-          }
-        } catch {
-          // Fall back to deterministic offline section auto-fill
-        }
-      }
-
-      setForm((prev) => ({
-        ...prev,
-        ...patch
-      }));
-      setSectionHighlights((prev) => ({
-        ...prev,
-        [sectionId]: summary
-      }));
-    } finally {
-      setAutoFillingSection(null);
     }
   };
 
@@ -2541,6 +2405,17 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               })}
             </div>
 
+
+            {/* Saved Projects Button */}
+            <button
+              onClick={() => setPresetsModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600/25 hover:bg-cyan-600/40 text-cyan-200 border border-cyan-500/50 flex items-center gap-1.5 transition"
+              title="Save, load, and manage local project presets"
+            >
+              <Folder className="w-3.5 h-3.5 text-cyan-400" />
+              <span>📂 Saved Projects</span>
+            </button>
+
             {/* Local Blueprints Manager Button */}
             <button
               onClick={() => setCloudModalOpen(true)}
@@ -2739,6 +2614,116 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
           })}
         </div>
       </header>
+
+
+      {/* ====================================================================
+          SAVED PROJECTS PRESETS MODAL
+         ==================================================================== */}
+      {presetsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div ref={presetsDialogRef} role="dialog" aria-modal="true" aria-labelledby="presets-dialog-title" tabIndex={-1} className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Bookmark className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h2 id="presets-dialog-title" className="text-base font-bold text-white">
+                    Saved Project Presets
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Save your current configuration or quickly switch between projects.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPresetsModalOpen(false)}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300">
+                Save Current Project
+              </h3>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={presetNameInput}
+                  onChange={(e) => setPresetNameInput(e.target.value)}
+                  placeholder="e.g., My SaaS App"
+                  className="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white"
+                />
+                <button
+                  onClick={handleSavePreset}
+                  disabled={!presetNameInput.trim()}
+                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold disabled:opacity-50"
+                >
+                  Save Preset
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                 <h4 className="text-xs font-semibold text-slate-300">
+                   Saved Presets ({savedPresets.length})
+                 </h4>
+                 <button
+                   onClick={handleResetToDefaultPreset}
+                   className="px-3 py-1.5 rounded bg-slate-800 text-slate-300 text-[11px] hover:bg-slate-700"
+                 >
+                   Reset to Default
+                 </button>
+              </div>
+
+              {savedPresets.length === 0 ? (
+                <p className="text-xs text-slate-500 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                  No presets saved yet.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {savedPresets.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{item.name}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : 'Saved'}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                         <div className="flex gap-2 text-[10px] text-slate-400">
+                           <span className="px-1.5 py-0.5 rounded bg-slate-800">{item.platform}</span>
+                           <span className="px-1.5 py-0.5 rounded bg-slate-800">{item.agent}</span>
+                         </div>
+                         <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={() => handleLoadPreset(item)}
+                              className="px-3 py-1 rounded bg-emerald-600/20 text-emerald-300 text-[11px] font-medium hover:bg-emerald-600/30"
+                            >
+                              Load
+                            </button>
+                            <button
+                              aria-label={`Delete preset "${item.name}"`}
+                              onClick={() => handleDeletePreset(item.id)}
+                              className="px-3 py-1 rounded bg-rose-600/20 text-rose-300 text-[11px] font-medium hover:bg-rose-600/30"
+                            >
+                              Delete
+                            </button>
+                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* ====================================================================
           LOCAL BLUEPRINTS & JSON IMPORT/EXPORT MODAL
@@ -3031,7 +3016,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       {statusMessage && (
         <div
           className={`max-w-[1600px] w-full mx-auto px-4 sm:px-6 pt-3 ${
-            cloudModalOpen || settingsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
+            cloudModalOpen || settingsModalOpen || presetsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
           }`}
         >
           <div
@@ -3372,17 +3357,14 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <label
-                          htmlFor="plain-idea-input"
-                          className="block text-xs font-medium text-slate-300"
-                        >
-                          {dummyProofMode
-                            ? 'What should your app do?'
-                            : 'Plain-Language Feature / Application Idea'}
-                        </label>
-                        <InfoTooltip text="Write your main app or feature idea in everyday language. All AI auto-fill buttons use this as their core context." />
-                      </div>
+                      <label
+                        htmlFor="plain-idea-input"
+                        className="block text-xs font-medium text-slate-300"
+                      >
+                        {dummyProofMode
+                          ? 'What should your app do?'
+                          : 'Plain-Language Feature / Application Idea'}
+                      </label>
                       <button
                         type="button"
                         disabled={expandingField === 'plainIdea'}
@@ -3412,17 +3394,14 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="user-persona-input"
-                        className="block text-xs font-medium text-slate-300"
-                      >
-                        {dummyProofMode
-                          ? 'Who will use this app?'
-                          : 'Target Users & Problem Context'}
-                      </label>
-                      <InfoTooltip text="Describes who is using the app and what problem it solves for them." />
-                    </div>
+                    <label
+                      htmlFor="user-persona-input"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      {dummyProofMode
+                        ? 'Who will use this app?'
+                        : 'Target Users & Problem Context'}
+                    </label>
                     <input
                       id="user-persona-input"
                       type="text"
@@ -3439,9 +3418,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div className="space-y-4 pt-2">
                     {/* 1. Platform Visual Picker */}
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                        <span>What kind of app are you making?</span>
-                        <InfoTooltip text="Selects the right tech stack and security rules for Web, Mobile, or Desktop." />
+                      <legend className="text-xs font-semibold text-slate-200">
+                        What kind of app are you making?
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {[
@@ -3494,9 +3472,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* 2. AI Tool Visual Picker */}
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                        <span>Which AI tool are you pasting this into?</span>
-                        <InfoTooltip text="Formats file references and slash commands for your chosen AI coding assistant." />
+                      <legend className="text-xs font-semibold text-slate-200">
+                        Which AI tool are you pasting this into?
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {[
@@ -3541,9 +3518,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* 3. Execution Style Visual Picker */}
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                        <span>How do you want the AI to work?</span>
-                        <InfoTooltip text="Choose whether the AI pauses for your review (HITL) or runs autonomously in the background (AFK)." />
+                      <legend className="text-xs font-semibold text-slate-200">
+                        How do you want the AI to work?
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {[
@@ -3588,12 +3564,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                     {/* Target Agent Harness */}
                     <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-                          Target Coding Agent
-                        </label>
-                        <InfoTooltip text="Tailors rule files and slash commands for Antigravity, Copilot, or Jules." />
-                      </div>
+                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                        Target Coding Agent
+                      </label>
                       <select
                         value={form.agent}
                         onChange={(e) => updateField('agent', e.target.value)}
@@ -3615,12 +3588,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* Target Application Domain */}
                     <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-                          Target Domain Architecture
-                        </label>
-                        <InfoTooltip text="Automatically primes architecture and security rules for Web, Mobile, or Desktop." />
-                      </div>
+                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                        Target Domain Architecture
+                      </label>
                       <select
                         value={form.platform}
                         onChange={(e) =>
@@ -3642,12 +3612,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* Execution Mode */}
                     <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-                          Slice Execution Mode
-                        </label>
-                        <InfoTooltip text="HITL pauses for human review; AFK runs slices autonomously in a cloud VM or subagent." />
-                      </div>
+                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                        Slice Execution Mode
+                      </label>
                       <select
                         value={form.executionMode}
                         onChange={(e) => updateField('executionMode', e.target.value)}
@@ -3862,30 +3829,16 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
               {/* Section 1: Role Persona & Primary Objective (Top-Priority Rules) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                      <span>Section 1 • Top-Priority Rules (AI Attention Top Section)</span>
-                      <InfoTooltip text="Putting your most important instructions at the top of the prompt where AI reads them best." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
+                      Section 1 • Top-Priority Rules (AI Attention Top Section)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Role Persona &amp; Primary Objective
                     </h3>
                   </div>
-                  <SectionAutoFillButton
-                    sectionId="role_objective"
-                    activeSection={autoFillingSection}
-                    onAutoFill={handleAutoFillSection}
-                  />
                 </div>
-
-                {sectionHighlights.role_objective && (
-                  <SectionAutoFillHighlight
-                    sectionId="role_objective"
-                    text={sectionHighlights.role_objective}
-                    onClear={() => clearSectionHighlight('role_objective')}
-                  />
-                )}
 
                 {isIntermediateMode && (
                   <JargonTranslationCard
@@ -3911,12 +3864,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Senior Engineering Persona
-                      </label>
-                      <InfoTooltip text="Sets the AI's expert mindset and seniority level for writing production code." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Senior Engineering Persona
+                    </label>
                     <input
                       type="text"
                       value={form.rolePersona}
@@ -3926,12 +3876,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Domain Specialization Focus
-                      </label>
-                      <InfoTooltip text="Pinpoints the specific technical specialty the AI should prioritize." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Domain Specialization Focus
+                    </label>
                     <input
                       type="text"
                       value={form.roleFocus}
@@ -3942,12 +3889,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <label className="block text-xs font-medium text-slate-300">
-                          1-Sentence Feature / Fix Objective
-                        </label>
-                        <InfoTooltip text="A concise, single-sentence statement of the exact feature or fix to build." />
-                      </div>
+                      <label className="block text-xs font-medium text-slate-300">
+                        1-Sentence Feature / Fix Objective
+                      </label>
                       <button
                         type="button"
                         disabled={expandingField === 'objective'}
@@ -3975,12 +3919,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <label className="block text-xs font-medium text-slate-300">
-                          Observable User Outcome ("so that...")
-                        </label>
-                        <InfoTooltip text="Describes the tangible benefit a real user experiences once the feature works." />
-                      </div>
+                      <label className="block text-xs font-medium text-slate-300">
+                        Observable User Outcome ("so that...")
+                      </label>
                       <button
                         type="button"
                         disabled={expandingField === 'observableOutcome'}
@@ -4013,63 +3954,44 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                      <span>Section 2 • Narrow Reasoning Boundaries</span>
-                      <InfoTooltip text="Tells the AI which files to edit, which files to read, and which exact libraries to use." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+                      Section 2 • Narrow Reasoning Boundaries
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Target Context, Pinned Stack &amp; File Pointers
                     </h3>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="context_stack"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
-                    {/* Pointer Syntax Switcher */}
-                    <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                      <button
-                        onClick={() => updateField('pointerStyle', '@path')}
-                        className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                          form.pointerStyle === '@path'
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        @path/to/file (Antigravity / CLI)
-                      </button>
-                      <button
-                        onClick={() => updateField('pointerStyle', '#file')}
-                        className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                          form.pointerStyle === '#file'
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        #file:path (VS Code Copilot)
-                      </button>
-                    </div>
+                  {/* Pointer Syntax Switcher */}
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      onClick={() => updateField('pointerStyle', '@path')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${
+                        form.pointerStyle === '@path'
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      @path/to/file (Antigravity / CLI)
+                    </button>
+                    <button
+                      onClick={() => updateField('pointerStyle', '#file')}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${
+                        form.pointerStyle === '#file'
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      #file:path (VS Code Copilot)
+                    </button>
                   </div>
                 </div>
 
-                {sectionHighlights.context_stack && (
-                  <SectionAutoFillHighlight
-                    sectionId="context_stack"
-                    text={sectionHighlights.context_stack}
-                    onClear={() => clearSectionHighlight('context_stack')}
-                  />
-                )}
-
                 <div className="space-y-3">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Target Files to Modify
-                      </label>
-                      <InfoTooltip text="Exact file paths the AI is allowed to create or edit for this task." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Target Files to Modify
+                    </label>
                     <input
                       type="text"
                       value={form.targetFilesModify}
@@ -4078,12 +4000,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Reference Files &amp; Interfaces (Read-Only Context)
-                      </label>
-                      <InfoTooltip text="Existing files the AI should read to understand types and patterns without modifying them." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Reference Files &amp; Interfaces (Read-Only Context)
+                    </label>
                     <input
                       type="text"
                       value={form.targetFilesRef}
@@ -4093,12 +4012,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label className="block text-xs font-medium text-slate-300">
-                          Pinned Stack &amp; Exact SDK Versions
-                        </label>
-                        <InfoTooltip text="Locks in framework and library versions so the AI doesn't use outdated syntax." />
-                      </div>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">
+                        Pinned Stack &amp; Exact SDK Versions
+                      </label>
                       <textarea
                         rows={2}
                         value={form.pinnedStack}
@@ -4120,12 +4036,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       )}
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label className="block text-xs font-medium text-slate-300">
-                          Unapproved Libraries &amp; Deprecated Patterns to Reject
-                        </label>
-                        <InfoTooltip text="Libraries or legacy patterns the AI is strictly forbidden from introducing." />
-                      </div>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">
+                        Unapproved Libraries &amp; Deprecated Patterns to Reject
+                      </label>
                       <textarea
                         rows={2}
                         value={form.unapprovedLibs}
@@ -4135,12 +4048,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </div>
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Visual Mockup / GitHub Issue Context
-                      </label>
-                      <InfoTooltip text="Optional design notes, Figma references, or GitHub issue context." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Visual Mockup / GitHub Issue Context
+                    </label>
                     <input
                       type="text"
                       value={form.visualContext}
@@ -4155,9 +4065,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <span>Section 3 • Non-Negotiable Boundaries</span>
-                      <InfoTooltip text="Strict architectural and security rules the AI must never violate." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                      Section 3 • Non-Negotiable Boundaries
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Architectural Invariants, Runtime &amp; Security Constraints
@@ -4166,11 +4075,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                   {/* Quick Domain Boundary Injectors */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <SectionAutoFillButton
-                      sectionId="constraints"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
                     <span className="text-[11px] text-slate-400">Inject Rules:</span>
                     <button
                       onClick={() => applyDomainInvariants('web')}
@@ -4198,14 +4102,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </button>
                   </div>
                 </div>
-
-                {sectionHighlights.constraints && (
-                  <SectionAutoFillHighlight
-                    sectionId="constraints"
-                    text={sectionHighlights.constraints}
-                    onClear={() => clearSectionHighlight('constraints')}
-                  />
-                )}
 
                 {isIntermediateMode && (
                   <JargonTranslationCard
@@ -4275,12 +4171,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   ) : (
                     <>
                       <div>
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <label className="block text-xs font-medium text-slate-300">
-                            State Placement &amp; Architectural Boundary Rules (Direct Imperatives)
-                          </label>
-                          <InfoTooltip text="Defines where state lives (server vs. client) and how modules communicate." />
-                        </div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          State Placement &amp; Architectural Boundary Rules (Direct Imperatives)
+                        </label>
                         <textarea
                           rows={4}
                           value={form.stateAndDataRules}
@@ -4289,12 +4182,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         />
                       </div>
                       <div>
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <label className="block text-xs font-medium text-slate-300">
-                            Runtime, Threading, Accessibility &amp; Security Constraints
-                          </label>
-                          <InfoTooltip text="Performance budgets, UI thread safety, accessibility standards, and security rules." />
-                        </div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          Runtime, Threading, Accessibility &amp; Security Constraints
+                        </label>
                         <textarea
                           rows={3}
                           value={form.runtimeAndSecurityLimits}
@@ -4305,12 +4195,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </>
                   )}
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Restricted / Generated Files (Forbidden to Edit by Hand)
-                      </label>
-                      <InfoTooltip text="Lockfiles, build outputs, or migrations that the AI must never manually edit." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Restricted / Generated Files (Forbidden to Edit by Hand)
+                    </label>
                     <input
                       type="text"
                       value={form.restrictedFiles}
@@ -4323,38 +4210,22 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
               {/* Section 4: Scoped Vertical-Slice Task Steps & Concrete Examples */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                      <span>Section 4 • Sequential Sub-Steps &amp; State Matrix</span>
-                      <InfoTooltip text="Step-by-step implementation order, UI states, and concrete input/output examples." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                      Section 4 • Sequential Sub-Steps &amp; State Matrix
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Scoped Vertical-Slice Steps &amp; Concrete Examples
                     </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="task_steps"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
-                    <button
-                      onClick={addStep}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1 hover:bg-emerald-600/30"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add Step
-                    </button>
-                  </div>
+                  <button
+                    onClick={addStep}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1 hover:bg-emerald-600/30"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Step
+                  </button>
                 </div>
-
-                {sectionHighlights.task_steps && (
-                  <SectionAutoFillHighlight
-                    sectionId="task_steps"
-                    text={sectionHighlights.task_steps}
-                    onClear={() => clearSectionHighlight('task_steps')}
-                  />
-                )}
 
                 {/* Ordered Steps */}
                 <div className="space-y-2">
@@ -4382,12 +4253,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 {/* 6 UI States Matrix */}
                 <div className="pt-2">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <label className="block text-xs font-semibold text-slate-300">
-                      Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
-                    </label>
-                    <InfoTooltip text="Ensures the AI designs every screen state instead of only coding the happy path." />
-                  </div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-2">
+                    Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {Object.entries(form.uiStates).map(([stateKey, desc]) => (
                       <div
@@ -4411,12 +4279,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 {/* Example Input / Output */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Concrete Example Input Payload
-                      </label>
-                      <InfoTooltip text="A real sample input so the AI knows the exact data shape to expect." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Concrete Example Input Payload
+                    </label>
                     <input
                       type="text"
                       value={form.exampleInput}
@@ -4425,12 +4290,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Expected Output / Sorting Contract
-                      </label>
-                      <InfoTooltip text="The exact output or UI result the AI should produce for the sample input." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Expected Output / Sorting Contract
+                    </label>
                     <input
                       type="text"
                       value={form.exampleOutput}
@@ -4443,43 +4305,26 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
               {/* Section 5: Verification Loop & Output Contract (Final Instructions) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-                      <span>Section 5 • Final Instructions (AI Attention Bottom Section)</span>
-                      <InfoTooltip text="Putting your verification commands at the very bottom ensures the AI runs tests right before finishing." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400">
+                      Section 5 • Final Instructions (AI Attention Bottom Section)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Verification Loop &amp; Output Contract
                     </h3>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="verification"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.planFirstGate}
+                      onChange={(e) => updateField('planFirstGate', e.target.checked)}
+                      className="accent-indigo-500 rounded"
                     />
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.planFirstGate}
-                        onChange={(e) => updateField('planFirstGate', e.target.checked)}
-                        className="accent-indigo-500 rounded"
-                      />
-                      <span>Require Plan-First Approval Gate</span>
-                      <InfoTooltip text="Asks the AI to show a step-by-step plan and wait for your approval before editing files." />
-                    </label>
-                  </div>
+                    <span>Require Plan-First Approval Gate</span>
+                  </label>
                 </div>
-
-                {sectionHighlights.verification && (
-                  <SectionAutoFillHighlight
-                    sectionId="verification"
-                    text={sectionHighlights.verification}
-                    onClear={() => clearSectionHighlight('verification')}
-                  />
-                )}
 
                 {isIntermediateMode && (
                   <JargonTranslationCard
@@ -4490,12 +4335,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 <div className="space-y-3">
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Exact Verification Shell Commands (Typecheck, Lint, Scoped Tests)
-                      </label>
-                      <InfoTooltip text="Shell commands the AI must execute and pass before reporting its work complete." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Exact Verification Shell Commands (Typecheck, Lint, Scoped Tests)
+                    </label>
                     <input
                       type="text"
                       value={form.verificationCommands}
@@ -4518,12 +4360,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     )}
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
-                        Required Deliverable Format &amp; Summary Contract
-                      </label>
-                      <InfoTooltip text="Specifies how the AI should format its final response and verification report." />
-                    </div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Required Deliverable Format &amp; Summary Contract
+                    </label>
                     <textarea
                       rows={2}
                       value={form.deliverableFormat}
@@ -4546,36 +4385,20 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div>
                     <h2 className="text-base font-semibold text-white flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-indigo-400" />
-                      <span>Root <code>AGENTS.md</code> Builder (10-Section Open Standard)</span>
-                      <InfoTooltip text="Permanent repository guide automatically read by Antigravity, GitHub Copilot, and Google Jules." />
+                      Root <code>AGENTS.md</code> Builder (10-Section Open Standard)
                     </h2>
                     <p className="text-xs text-slate-400">
                       Natively discovered by Google Jules, GitHub Copilot, and Google Antigravity.
                       Separates durable repository context from transient task prompts.
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="agentsmd"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
-                    <button
-                      onClick={() => setSelectedArtifact('AGENTS.md')}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium"
-                    >
-                      Preview AGENTS.md →
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setSelectedArtifact('AGENTS.md')}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium"
+                  >
+                    Preview AGENTS.md →
+                  </button>
                 </div>
-
-                {sectionHighlights.agentsmd && (
-                  <SectionAutoFillHighlight
-                    sectionId="agentsmd"
-                    text={sectionHighlights.agentsmd}
-                    onClear={() => clearSectionHighlight('agentsmd')}
-                  />
-                )}
 
                 {isIntermediateMode && (
                   <JargonTranslationCard
@@ -5026,37 +4849,22 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
             <div className="space-y-5">
               {/* Stage 1: Project Constitution */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                      <span>Stage 1 • Core Project Laws (.specify/memory/constitution.md)</span>
-                      <InfoTooltip text="Permanent non-negotiable engineering laws that every feature and AI session must obey." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
+                      Stage 1 • Core Project Laws (.specify/memory/constitution.md)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Immutable Engineering Principles
                     </h3>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="sdd_constitution"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
-                    <button
-                      onClick={() => setSelectedArtifact('.specify/memory/constitution.md')}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs"
-                    >
-                      Preview constitution.md →
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setSelectedArtifact('.specify/memory/constitution.md')}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs"
+                  >
+                    Preview constitution.md →
+                  </button>
                 </div>
-                {sectionHighlights.sdd_constitution && (
-                  <SectionAutoFillHighlight
-                    sectionId="sdd_constitution"
-                    text={sectionHighlights.sdd_constitution}
-                    onClear={() => clearSectionHighlight('sdd_constitution')}
-                  />
-                )}
                 <textarea
                   rows={4}
                   value={form.constitutionRules}
@@ -5069,9 +4877,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                      <span>Stage 2 • Feature Goals &amp; When/Then Rules (No Tech-Stack Bias)</span>
-                      <InfoTooltip text="Defines observable user behavior using WHEN [trigger] -> THE SYSTEM SHALL [reaction] rules." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+                      Stage 2 • Feature Goals &amp; When/Then Rules (No Tech-Stack Bias)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Step-by-Step Goal Checks (When/Then Rules) (<code>spec.md</code>)
@@ -5081,12 +4888,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       observable system reactions (<strong>THE SYSTEM SHALL</strong>).
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="sdd_spec"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={addEars}
                       className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 text-xs flex items-center gap-1"
@@ -5101,14 +4903,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </button>
                   </div>
                 </div>
-
-                {sectionHighlights.sdd_spec && (
-                  <SectionAutoFillHighlight
-                    sectionId="sdd_spec"
-                    text={sectionHighlights.sdd_spec}
-                    onClear={() => clearSectionHighlight('sdd_spec')}
-                  />
-                )}
 
                 {isIntermediateMode && (
                   <JargonTranslationCard
@@ -5167,9 +4961,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                      <span>Stage 3 • Full-Feature Task Breakdown &amp; Parallel Execution</span>
-                      <InfoTooltip text="Breaks your project into end-to-end mini-features (data + UI + tests) instead of disconnected layers." />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                      Stage 3 • Full-Feature Task Breakdown &amp; Parallel Execution
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Step-by-Step Task Breakdown (Full Features, Not Horizontal Layers) (
@@ -5181,12 +4974,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       (Automatic) and <code>[P]</code> for parallel execution.
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <SectionAutoFillButton
-                      sectionId="sdd_tasks"
-                      activeSection={autoFillingSection}
-                      onAutoFill={handleAutoFillSection}
-                    />
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={addSlice}
                       className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1"
@@ -5201,14 +4989,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </button>
                   </div>
                 </div>
-
-                {sectionHighlights.sdd_tasks && (
-                  <SectionAutoFillHighlight
-                    sectionId="sdd_tasks"
-                    text={sectionHighlights.sdd_tasks}
-                    onClear={() => clearSectionHighlight('sdd_tasks')}
-                  />
-                )}
 
                 {isIntermediateMode && (
                   <JargonTranslationCard
