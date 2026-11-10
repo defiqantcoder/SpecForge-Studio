@@ -306,7 +306,7 @@ function registerIpcHandlers(): void {
       const record: SavedBlueprint = {
         id,
         title: String(input.title || 'Untitled Blueprint').trim() || 'Untitled Blueprint',
-        syncCode: input.syncCode ? String(input.syncCode).trim().toLowerCase() : '',
+        tag: input.tag ? String(input.tag).trim().toLowerCase() : '',
         updatedAt: Date.now(),
         formState: input.formState
       };

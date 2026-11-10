@@ -31,7 +31,7 @@ function createMockDesktopAPI(): DesktopAPI {
     saveBlueprint: vi.fn().mockImplementation(async (bp) => ({
       id: bp.id || 'my-app',
       title: bp.title,
-      syncCode: bp.syncCode || '',
+      tag: bp.tag || '',
       updatedAt: Date.now(),
       formState: bp.formState
     })),

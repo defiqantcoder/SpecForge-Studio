@@ -2,5 +2,7 @@ node_modules/
 dist/
 dist-electron/
 release/
+*.deb
+*.AppImage
 *.log
 .DS_Store

@@ -1,7 +1,7 @@
 export interface SavedBlueprint {
   id: string;
   title: string;
-  syncCode?: string;
+  tag?: string;
   updatedAt: number;
   formState: string;
 }

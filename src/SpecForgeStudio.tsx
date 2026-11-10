@@ -468,7 +468,7 @@ export default function SpecForgeStudio() {
     }
     return 'My Invoice Approval App';
   });
-  const [syncPasscode, setSyncPasscode] = useState('');
+  const [blueprintTag, setBlueprintTag] = useState('');
   const [mySavedProjects, setMySavedProjects] = useState<SavedBlueprint[]>([]);
   const [sharedCloudProjects, setSharedCloudProjects] = useState<SavedBlueprint[]>([]);
   const [isSavingCloud, setIsSavingCloud] = useState(false);
@@ -555,7 +555,7 @@ export default function SpecForgeStudio() {
     if (window.desktopAPI) {
       const list = await window.desktopAPI.listBlueprints();
       setMySavedProjects(list);
-      setSharedCloudProjects(list.filter((b) => Boolean(b.syncCode)));
+      setSharedCloudProjects(list.filter((b) => Boolean(b.tag)));
       return;
     }
 
@@ -564,7 +564,7 @@ export default function SpecForgeStudio() {
       const list: SavedBlueprint[] = raw ? JSON.parse(raw) : [];
       list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       setMySavedProjects(list);
-      setSharedCloudProjects(list.filter((b) => Boolean(b.syncCode)));
+      setSharedCloudProjects(list.filter((b) => Boolean(b.tag)));
     } catch {
       setMySavedProjects([]);
       setSharedCloudProjects([]);
@@ -616,7 +616,7 @@ export default function SpecForgeStudio() {
       const payload = {
         id: cleanId,
         title: projectTitle || 'Untitled Blueprint',
-        syncCode: withTag ? syncPasscode.trim().toLowerCase() : '',
+        tag: withTag ? blueprintTag.trim().toLowerCase() : '',
         formState: JSON.stringify(form)
       };
 
@@ -637,7 +637,7 @@ export default function SpecForgeStudio() {
       setStatusMessage({
         type: 'success',
         text: withTag
-          ? `Saved "${projectTitle}" locally with tag "#${syncPasscode || 'untagged'}". You can also export it as a .specforge.json file!`
+          ? `Saved "${projectTitle}" locally with tag "#${blueprintTag || 'untagged'}". You can also export it as a .specforge.json file!`
           : `Saved "${projectTitle}" to your Ubuntu desktop workspace!`
       });
     } catch (err: any) {
@@ -655,7 +655,7 @@ export default function SpecForgeStudio() {
       const parsed = JSON.parse(item.formState);
       setForm((prev) => ({ ...prev, ...parsed }));
       setProjectTitle(item.title || 'Loaded Project');
-      if (item.syncCode) setSyncPasscode(item.syncCode);
+      if (item.tag) setBlueprintTag(item.tag);
       setCloudModalOpen(false);
       setStatusMessage({
         type: 'success',
@@ -715,7 +715,7 @@ export default function SpecForgeStudio() {
     const saved = await window.desktopAPI.saveBlueprint({
       id: res.blueprint.id,
       title: res.blueprint.title,
-      syncCode: res.blueprint.syncCode,
+      tag: res.blueprint.tag,
       formState: res.blueprint.formState
     });
     await refreshBlueprints();
@@ -1565,10 +1565,10 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
   // Filtered cross-device shared projects by optional sync code
   const filteredSharedProjects = useMemo(() => {
-    const code = syncPasscode.trim().toLowerCase();
+    const code = blueprintTag.trim().toLowerCase();
     if (!code) return sharedCloudProjects;
-    return sharedCloudProjects.filter((p) => (p.syncCode || '').toLowerCase().includes(code));
-  }, [sharedCloudProjects, syncPasscode]);
+    return sharedCloudProjects.filter((p) => (p.tag || '').toLowerCase().includes(code));
+  }, [sharedCloudProjects, blueprintTag]);
 
   // Validation & Guardrail Diagnostics (Antigravity 24KB limit, Copilot 30k chars, etc.)
   const diagnostics = useMemo(() => {
@@ -1980,8 +1980,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </label>
                   <input
                     type="text"
-                    value={syncPasscode}
-                    onChange={(e) => setSyncPasscode(e.target.value)}
+                    value={blueprintTag}
+                    onChange={(e) => setBlueprintTag(e.target.value)}
                     placeholder="e.g., work-2026"
                     className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs font-mono text-cyan-200"
                   />
@@ -2082,7 +2082,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </h4>
                 {filteredSharedProjects.length === 0 ? (
                   <p className="text-xs text-slate-500 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                    No tagged blueprints match &quot;{syncPasscode || 'all'}&quot;.
+                    No tagged blueprints match &quot;{blueprintTag || 'all'}&quot;.
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -2096,9 +2096,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                             <p className="text-xs font-semibold text-white truncate">
                               {item.title}
                             </p>
-                            {item.syncCode && (
+                            {item.tag && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">
-                                #{item.syncCode}
+                                #{item.tag}
                               </span>
                             )}
                           </div>
