@@ -430,19 +430,193 @@ async function callGeminiStructured(
   );
 }
 
+type ViewMode = 'simple' | 'intermediate' | 'pro';
+
 const SIMPLE_ESSENTIAL_FILES: Array<{ key: string; label: string }> = [
   { key: 'TASK_PROMPT.md', label: '📋 1. Copy-Paste AI Prompt' },
   { key: 'AGENTS.md', label: '🤖 2. Project Rules (AGENTS.md)' },
   { key: 'bootstrap-agy.sh', label: '⚡ 3. 1-Click Auto-Setup' }
 ];
 
+const INTERMEDIATE_CORE_FILES: Array<{ key: string; label: string; subtitle: string }> = [
+  { key: 'TASK_PROMPT.md', label: 'TASK_PROMPT.md', subtitle: 'Your main AI task prompt' },
+  { key: 'AGENTS.md', label: 'AGENTS.md', subtitle: 'Permanent project rules' },
+  { key: 'specs/001-feature/spec.md', label: 'spec.md', subtitle: 'Feature requirements (EARS)' },
+  { key: 'specs/001-feature/tasks.md', label: 'tasks.md', subtitle: 'Step-by-step feature slices' },
+  {
+    key: '.specify/memory/constitution.md',
+    label: 'constitution.md',
+    subtitle: 'Core non-negotiable laws'
+  },
+  { key: 'bootstrap-agy.sh', label: 'bootstrap-agy.sh', subtitle: '1-click Antigravity setup' }
+];
+
+interface IntermediateRulePreset {
+  id: string;
+  label: string;
+  helper: string;
+  targetField: 'stateAndDataRules' | 'runtimeAndSecurityLimits';
+  technicalRule: string;
+}
+
+const INTERMEDIATE_RULE_PRESETS: IntermediateRulePreset[] = [
+  {
+    id: 'server_client_split',
+    label: 'Keep data fetching separate from visual design (Server/Client split)',
+    helper: 'Keeps data queries out of interactive UI leaves so state stays predictable and fast.',
+    targetField: 'stateAndDataRules',
+    technicalRule:
+      "- Separate server data fetching from client UI rendering: keep queries/mutations in server or service boundaries and restrict 'use client' strictly to leaf interactive components."
+  },
+  {
+    id: 'require_passing_tests',
+    label: 'Require automated tests to pass before finishing tasks',
+    helper: 'Prevents the AI from marking a task done until typecheck and tests succeed.',
+    targetField: 'runtimeAndSecurityLimits',
+    technicalRule:
+      '- Gate every task completion on passing typecheck, lint, and scoped unit/integration tests without skipping or weakening assertions.'
+  },
+  {
+    id: 'path_traversal_protection',
+    label: 'Prevent file path hacks or security holes (Path Traversal protection)',
+    helper: 'Enforces safe root boundary checks against ../ path escapes and untrusted inputs.',
+    targetField: 'runtimeAndSecurityLimits',
+    technicalRule:
+      '- Enforce strict path canonicalization and root-boundary validation on every filesystem or IPC input to prevent path traversal (../) and injection vulnerabilities.'
+  }
+];
+
+function deriveTracerBulletLayers(title: string, platform: string): string {
+  const boundary =
+    platform === 'desktop'
+      ? 'Typed IPC Bridge'
+      : platform === 'mobile'
+        ? 'Native Module Boundary'
+        : 'Validated API Boundary';
+  const normalized = title.trim().toLowerCase();
+  const dataLayer = normalized.includes('auth') ? 'Auth Schema' : 'Data Schema';
+  return `${dataLayer} + Domain Service + ${boundary} + UI Slice + Automated Test`;
+}
+
+type ExpandableFieldKey = 'plainIdea' | 'objective' | 'observableOutcome';
+
+function buildOfflineExpandedBullets(
+  fieldKey: ExpandableFieldKey,
+  currentValue: string,
+  platform: string,
+  userPersona: string
+): string {
+  const persona = (userPersona || 'target users').trim();
+  const platformLabel =
+    platform === 'desktop' ? 'desktop app' : platform === 'mobile' ? 'mobile app' : 'web app';
+  if (fieldKey === 'objective') {
+    return `(Includes input validation, loading/error states, and automated tests for our ${platformLabel}.)`;
+  }
+  if (fieldKey === 'observableOutcome') {
+    return `(Verified with instant visual feedback, safe error recovery, and accessible controls for ${persona}.)`;
+  }
+  const topicHint = currentValue ? 'for this workflow' : `for the ${platformLabel}`;
+  return [
+    `- Provide clear loading, empty, and error feedback states ${topicHint}`,
+    `- Validate all user inputs and keep actions responsive for ${persona}`,
+    `- Include automated verification checks so core flows stay reliable`
+  ].join('\n');
+}
+
+function ExpandedTextHighlight({
+  fieldKey,
+  text,
+  onClear
+}: {
+  fieldKey: ExpandableFieldKey;
+  text: string;
+  onClear: () => void;
+}) {
+  return (
+    <div
+      data-testid={`expanded-highlight-${fieldKey}`}
+      className="mt-2 bg-amber-500/15 border-l-2 border-amber-400 px-2.5 py-2 rounded text-xs text-amber-100 space-y-1.5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold text-amber-300 flex items-center gap-1">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>Newly Expanded Options (Added to Input Above)</span>
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onClear}
+            className="px-2 py-0.5 rounded bg-amber-500/25 hover:bg-amber-500/35 border border-amber-400/50 text-[11px] font-semibold text-amber-100 transition"
+          >
+            Accept All
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="px-2 py-0.5 rounded bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-[11px] text-slate-300 transition"
+          >
+            Clear Highlight
+          </button>
+        </div>
+      </div>
+      <div className="bg-amber-500/15 border-l-2 border-amber-400 px-1 rounded whitespace-pre-wrap text-[11px] text-amber-50">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/** Collapsible, tooltip-friendly plain-language explanation card for Intermediate Mode. */
+function JargonTranslationCard({
+  term,
+  explanation
+}: {
+  term: string;
+  explanation: string;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div
+      title={explanation}
+      className="rounded-xl bg-indigo-950/35 border border-indigo-500/30 px-3 py-2 text-xs text-indigo-100"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-indigo-300 flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <span>Plain-English Guide: {term}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="text-[11px] text-indigo-300 hover:underline shrink-0"
+        >
+          {expanded ? 'Hide' : 'Explain'}
+        </button>
+      </div>
+      {expanded && (
+        <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">{explanation}</p>
+      )}
+    </div>
+  );
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
-  // Simple Mode (dummyProofMode=true) vs Pro Mode (dummyProofMode=false)
-  const [dummyProofMode, setDummyProofMode] = useState(true);
-  // Optional toggle inside Simple Mode dock to peek at all 14 files
+  // 3-way view selector: Simple (No-Code Wizard), Intermediate (Pro-Light), Pro (All 14 Files)
+  const [viewMode, setViewMode] = useState<ViewMode>('simple');
+  const isSimpleMode = viewMode === 'simple';
+  const isIntermediateMode = viewMode === 'intermediate';
+  const isProMode = viewMode === 'pro';
+  const dummyProofMode = isSimpleMode;
+  const showPlainHelpers = !isProMode;
+  // Optional toggle inside Simple/Intermediate dock to peek at all 14 files
   const [showAllSimpleFiles, setShowAllSimpleFiles] = useState(false);
+  // Auto-Expand Options loading & visual highlight state
+  const [expandingField, setExpandingField] = useState<ExpandableFieldKey | null>(null);
+  const [expandedHighlights, setExpandedHighlights] = useState<
+    Partial<Record<ExpandableFieldKey, string>>
+  >({});
   // Mobile view switcher ('editor' | 'preview') for small screens
   const [mobilePane, setMobilePane] = useState('editor');
   // Active preview file in the right-hand artifact dock
@@ -850,6 +1024,69 @@ export default function SpecForgeStudio() {
   // ============================================================================
   // AI MAGIC AUTO-ARCHITECT (Transforms plain language into all sections)
   // ============================================================================
+  const clearExpandedHighlight = (fieldKey: ExpandableFieldKey) => {
+    setExpandedHighlights((prev) => {
+      const next = { ...prev };
+      delete next[fieldKey];
+      return next;
+    });
+  };
+
+  const handleAutoExpandField = async (fieldKey: ExpandableFieldKey) => {
+    const currentValue = String(form[fieldKey] || '').trim();
+    setExpandingField(fieldKey);
+
+    try {
+      let addedText = '';
+      const canCallAI = Boolean(window.desktopAPI && geminiSettings.hasKey);
+
+      if (canCallAI) {
+        try {
+          const systemPrompt =
+            'You are a Senior Product & Software Architect. Given a user draft, return 3 concise, plain-language engineering bullets that flesh out edge cases, user feedback states, and validation.';
+          const userQuery = `Field: ${fieldKey}\nPlatform: ${form.platform}\nUsers: ${form.userPersona}\nCurrent Text: ${currentValue}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              bullets: {
+                type: 'ARRAY',
+                items: { type: 'STRING' }
+              }
+            },
+            required: ['bullets']
+          };
+          const res = await callGeminiStructured(systemPrompt, userQuery, schema);
+          if (Array.isArray(res?.bullets) && res.bullets.length > 0) {
+            addedText = res.bullets
+              .map((b: string) => (b.trim().startsWith('-') ? b.trim() : `- ${b.trim()}`))
+              .join('\n');
+          }
+        } catch {
+          // Fall back to deterministic offline expander if Gemini call fails
+        }
+      }
+
+      if (!addedText) {
+        addedText = buildOfflineExpandedBullets(
+          fieldKey,
+          currentValue,
+          form.platform,
+          form.userPersona
+        );
+      }
+
+      const separator = fieldKey === 'plainIdea' ? '\n' : ' ';
+      const nextVal = currentValue ? `${currentValue}${separator}${addedText}` : addedText;
+      updateField(fieldKey, nextVal);
+      setExpandedHighlights((prev) => ({
+        ...prev,
+        [fieldKey]: addedText
+      }));
+    } finally {
+      setExpandingField(null);
+    }
+  };
+
   const applyOfflineSmartTemplates = () => {
     const idea = form.plainIdea.trim();
     const persona = (form.userPersona || 'end users').trim();
@@ -1558,23 +1795,23 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
     return {
       'bootstrap-agy.sh': {
-        title: 'bootstrap-agy.sh (1-Click Import into agy)',
-        badge: 'Import to agy',
+        title: 'bootstrap-agy.sh (1-Click Antigravity Setup)',
+        badge: '1-Click Setup',
         content: agyBootstrapSh
       },
       'TASK_PROMPT.md': {
-        title: 'TASK_PROMPT.md (5-Section Contract)',
-        badge: 'Task Prompt',
+        title: 'TASK_PROMPT.md (5-Section AI Prompt)',
+        badge: 'Main AI Prompt',
         content: taskPromptMd
       },
       'AGENTS.md': {
-        title: 'AGENTS.md (10-Section Standard)',
-        badge: 'All Agents',
+        title: 'AGENTS.md (Project Rules for All AI Tools)',
+        badge: 'Project Rules',
         content: agentsMd
       },
       [`${form.nestedSubprojectPath}/AGENTS.md`]: {
-        title: `${form.nestedSubprojectPath}/AGENTS.md (Nested Monorepo)`,
-        badge: 'Monorepo',
+        title: `${form.nestedSubprojectPath}/AGENTS.md (Sub-Folder Rules)`,
+        badge: 'Sub-Folder Rules',
         content: nestedAgentsMd
       },
       [`.agents/rules/${form.agyRuleName}.md`]: {
@@ -1589,64 +1826,77 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       },
       '.github/copilot-instructions.md': {
         title: '.github/copilot-instructions.md',
-        badge: 'Copilot Repo',
+        badge: 'Copilot Repo Rules',
         content: copilotRepoMd
       },
       [`.github/instructions/${form.copilotInstructionName}.instructions.md`]: {
         title: `.github/instructions/${form.copilotInstructionName}.instructions.md`,
-        badge: 'Copilot Path Rule',
+        badge: 'Copilot File Rule',
         content: copilotPathMd
       },
       [`.github/agents/${form.copilotAgentName}.agent.md`]: {
         title: `.github/agents/${form.copilotAgentName}.agent.md`,
-        badge: 'Copilot Agent',
+        badge: 'Copilot Custom Agent',
         content: copilotAgentMd
       },
       '.github/workflows/copilot-setup-steps.yml': {
         title: '.github/workflows/copilot-setup-steps.yml',
-        badge: 'Copilot Cloud VM',
+        badge: 'Copilot Cloud Setup',
         content: copilotSetupYml
       },
       'jules-setup.sh': {
-        title: 'jules-setup.sh (VM Snapshot & API)',
+        title: 'jules-setup.sh (Cloud Environment Setup)',
         badge: 'Google Jules',
         content: julesSetupSh
       },
       '.specify/memory/constitution.md': {
-        title: '.specify/memory/constitution.md',
-        badge: 'SDD Stage 1',
+        title: '.specify/memory/constitution.md (Core Project Laws)',
+        badge: 'Core Laws',
         content: constitutionMd
       },
       'specs/001-feature/spec.md': {
-        title: 'specs/001-feature/spec.md (EARS Spec)',
-        badge: 'SDD Stage 2-3',
+        title: 'specs/001-feature/spec.md (Step-by-Step Goal Checks)',
+        badge: 'Goal Checks',
         content: specMd
       },
       'specs/001-feature/tasks.md': {
-        title: 'specs/001-feature/tasks.md (Vertical Slices)',
-        badge: 'SDD Stage 5-6',
+        title: 'specs/001-feature/tasks.md (Step-by-Step Task Breakdown)',
+        badge: 'Task Breakdown',
         content: tasksMd
       }
     };
   }, [form]);
 
-  const isSimpleDockFiltered = dummyProofMode && !showAllSimpleFiles;
+  const isDockFiltered = !isProMode && !showAllSimpleFiles;
   const simpleAllowedKeys = SIMPLE_ESSENTIAL_FILES.map((item) => item.key);
+  const intermediateAllowedKeys = INTERMEDIATE_CORE_FILES.map((item) => item.key);
+  const allowedDockKeys = isSimpleMode ? simpleAllowedKeys : intermediateAllowedKeys;
 
-  const handleToggleSimpleMode = (nextSimple: boolean) => {
-    setDummyProofMode(nextSimple);
-    if (nextSimple) {
+  const handleChangeViewMode = (nextMode: ViewMode) => {
+    setViewMode(nextMode);
+    if (nextMode !== 'pro') {
       setShowAllSimpleFiles(false);
+    }
+    if (nextMode === 'simple') {
       if (activeTab !== 'ideation' && activeTab !== 'guide') {
+        setActiveTab('ideation');
+      }
+    } else if (nextMode === 'intermediate') {
+      if (
+        activeTab !== 'ideation' &&
+        activeTab !== 'prompt5' &&
+        activeTab !== 'agentsmd' &&
+        activeTab !== 'sdd'
+      ) {
         setActiveTab('ideation');
       }
     }
   };
 
-  // Ensure selectedArtifact key exists when dynamic paths or Simple Mode filter change
+  // Ensure selectedArtifact key exists when dynamic paths or filtered dock modes change
   const currentArtifactKey =
     artifacts[selectedArtifact] &&
-    (!isSimpleDockFiltered || simpleAllowedKeys.includes(selectedArtifact))
+    (!isDockFiltered || allowedDockKeys.includes(selectedArtifact))
       ? selectedArtifact
       : 'TASK_PROMPT.md';
   const currentArtifact = artifacts[currentArtifactKey];
@@ -1663,7 +1913,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     return sharedCloudProjects.filter((p) => (p.tag || '').toLowerCase().includes(code));
   }, [sharedCloudProjects, blueprintTag]);
 
-  // Validation & Guardrail Diagnostics (Antigravity 24KB limit, Copilot 30k chars, etc.)
+  // Validation & Guardrail Diagnostics (translated into plain-language health checks)
   const diagnostics = useMemo(() => {
     const agyRuleBytes = new Blob([
       artifacts[`.agents/rules/${form.agyRuleName}.md`]?.content || ''
@@ -1673,13 +1923,34 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     ).length;
     const promptChars = (artifacts['TASK_PROMPT.md']?.content || '').length;
     const estTokens = Math.ceil(promptChars / 4);
+    const agyRuleLimit = 24000;
+    const copilotAgentLimit = 30000;
+    const isRuleSizeSafe = agyRuleBytes < agyRuleLimit;
+    const isCopilotSizeSafe = copilotAgentChars < copilotAgentLimit;
+    const isPromptLong = estTokens > 4000;
 
     return {
       agyRuleBytes,
-      agyRuleLimit: 24000,
+      agyRuleLimit,
       copilotAgentChars,
-      copilotAgentLimit: 30000,
+      copilotAgentLimit,
       estTokens,
+      isRuleSizeSafe,
+      isCopilotSizeSafe,
+      isPromptLong,
+      ruleSizeMessage: isRuleSizeSafe
+        ? 'Rule file is well under size limits (AI will read it fully)'
+        : 'Rule file is getting too large — shorten it so your AI reads every rule',
+      copilotSizeMessage: isCopilotSizeSafe
+        ? 'Custom agent file is well under size limits (Copilot will read it fully)'
+        : 'Custom agent file is getting a bit long — trim extra lines so Copilot reads it all',
+      promptLengthMessage: !isPromptLong
+        ? 'Prompt size is safe for fast AI responses'
+        : 'Your prompt is getting a bit long; consider starting a fresh AI chat',
+      memorySafetyMessage:
+        estTokens < 120000
+          ? 'Instructions fit safely within AI memory limits'
+          : 'Your prompt is getting a bit long; consider starting a fresh AI chat',
       hasPrimacyAnchor: Boolean(form.rolePersona && form.objective),
       hasRecencyAnchor: Boolean(form.verificationCommands && form.deliverableFormat)
     };
@@ -1847,6 +2118,56 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     updateField('verticalSlices', copy);
   };
 
+  const handleToggleIntermediateRule = (rule: IntermediateRulePreset) => {
+    setForm((prev) => {
+      const current = String(prev[rule.targetField] || '');
+      const hasRule = current.includes(rule.technicalRule);
+      const nextValue = hasRule
+        ? current
+            .split('\n')
+            .filter((line) => line.trim() !== rule.technicalRule)
+            .join('\n')
+            .trim()
+        : current.trim()
+          ? `${current.trim()}\n${rule.technicalRule}`
+          : rule.technicalRule;
+      return {
+        ...prev,
+        [rule.targetField]: nextValue
+      };
+    });
+  };
+
+  const updateIntermediateSlice = (
+    idx: number,
+    patch: { title?: string; needsHumanReview?: boolean; parallel?: boolean }
+  ) => {
+    setForm((prev) => {
+      const copy = [...prev.verticalSlices];
+      const existing = copy[idx];
+      if (!existing) return prev;
+      const nextTitle = patch.title !== undefined ? patch.title : existing.title;
+      const nextMode =
+        patch.needsHumanReview !== undefined
+          ? patch.needsHumanReview
+            ? 'HITL'
+            : 'AFK'
+          : existing.mode;
+      const nextParallel = patch.parallel !== undefined ? patch.parallel : existing.parallel;
+      copy[idx] = {
+        ...existing,
+        title: nextTitle,
+        mode: nextMode,
+        parallel: nextParallel,
+        layers: deriveTracerBulletLayers(nextTitle, prev.platform)
+      };
+      return {
+        ...prev,
+        verticalSlices: copy
+      };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 pb-16 lg:pb-0">
       {/* ====================================================================
@@ -1875,21 +2196,55 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
           {/* Right Toolbar: Beginner Explanations Toggle, Presets, Blueprints, AI Key, Export */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Simple Mode / Pro Mode Toggle */}
-            <button
-              onClick={() => handleToggleSimpleMode(!dummyProofMode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border ${
-                dummyProofMode
-                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/50'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
-              }`}
-              title="Switch between Simple Mode (No-Code) and Pro Mode (All 14 Files)"
+            {/* 3-Way View Mode Selector: Simple / Intermediate / Pro */}
+            <div
+              role="group"
+              aria-label="Workspace View Mode"
+              className="inline-flex items-center rounded-lg bg-slate-900/90 border border-slate-700/80 p-0.5 gap-0.5"
             >
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-              <span>
-                {dummyProofMode ? 'Simple Mode (No-Code)' : 'Pro Mode (All 14 Files)'}
-              </span>
-            </button>
+              {(
+                [
+                  {
+                    id: 'simple' as const,
+                    label: 'Simple',
+                    title: 'No-Code Wizard'
+                  },
+                  {
+                    id: 'intermediate' as const,
+                    label: 'Intermediate',
+                    title: 'Pro-Light (4 Tabs + Jargon Guide)'
+                  },
+                  {
+                    id: 'pro' as const,
+                    label: 'Pro',
+                    title: 'All 14 Files & Raw Code'
+                  }
+                ] as const
+              ).map((mode) => {
+                const active = viewMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleChangeViewMode(mode.id)}
+                    title={mode.title}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition ${
+                      active
+                        ? mode.id === 'simple'
+                          ? 'bg-amber-500/25 text-amber-200 border border-amber-400/50 shadow-sm'
+                          : mode.id === 'intermediate'
+                            ? 'bg-indigo-500/30 text-indigo-100 border border-indigo-400/50 shadow-sm'
+                            : 'bg-slate-700 text-white border border-slate-500/60 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                    }`}
+                  >
+                    {mode.id === 'simple' && <Lightbulb className="w-3 h-3 text-amber-400" />}
+                    <span>{mode.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Local Blueprints Manager Button */}
             <button
@@ -1977,7 +2332,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
         {/* Navigation Tabs */}
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-800/60 bg-slate-950/50">
-          {(dummyProofMode
+          {(isSimpleMode
             ? [
                 {
                   id: 'ideation',
@@ -1992,44 +2347,71 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   badge: 'Step 2'
                 }
               ]
-            : [
-                {
-                  id: 'guide',
-                  label: '0. How to Use (Dummy-Proof Guide)',
-                  icon: Compass,
-                  badge: 'Read First'
-                },
-                {
-                  id: 'ideation',
-                  label: '1. Plain-English Idea & AI Auto-Fill',
-                  icon: Sparkles,
-                  badge: 'Step 1'
-                },
-                {
-                  id: 'prompt5',
-                  label: '2. Task Prompt Builder (5 Sections)',
-                  icon: Terminal,
-                  badge: 'Step 2'
-                },
-                {
-                  id: 'agentsmd',
-                  label: '3. AGENTS.md (Project Rules)',
-                  icon: BookOpen,
-                  badge: 'Step 3'
-                },
-                {
-                  id: 'platform_files',
-                  label: '4. Copilot, Antigravity & Jules Files',
-                  icon: FolderGit2,
-                  badge: 'Step 4'
-                },
-                {
-                  id: 'sdd',
-                  label: '5. Spec & Task Slices (spec.md / tasks.md)',
-                  icon: Layers,
-                  badge: 'Step 5'
-                }
-              ]
+            : isIntermediateMode
+              ? [
+                  {
+                    id: 'ideation',
+                    label: '1. Idea & AI Setup',
+                    icon: Sparkles,
+                    badge: 'Step 1'
+                  },
+                  {
+                    id: 'prompt5',
+                    label: '2. Custom AI Prompt',
+                    icon: Terminal,
+                    badge: 'Step 2'
+                  },
+                  {
+                    id: 'agentsmd',
+                    label: '3. Project Rules',
+                    icon: BookOpen,
+                    badge: 'Step 3'
+                  },
+                  {
+                    id: 'sdd',
+                    label: '4. Feature Checklist',
+                    icon: Layers,
+                    badge: 'Step 4'
+                  }
+                ]
+              : [
+                  {
+                    id: 'guide',
+                    label: '0. How to Use (Dummy-Proof Guide)',
+                    icon: Compass,
+                    badge: 'Read First'
+                  },
+                  {
+                    id: 'ideation',
+                    label: '1. Plain-English Idea & AI Auto-Fill',
+                    icon: Sparkles,
+                    badge: 'Step 1'
+                  },
+                  {
+                    id: 'prompt5',
+                    label: '2. Task Prompt Builder (5 Sections)',
+                    icon: Terminal,
+                    badge: 'Step 2'
+                  },
+                  {
+                    id: 'agentsmd',
+                    label: '3. AGENTS.md (Project Rules)',
+                    icon: BookOpen,
+                    badge: 'Step 3'
+                  },
+                  {
+                    id: 'platform_files',
+                    label: '4. Copilot, Antigravity & Jules Files',
+                    icon: FolderGit2,
+                    badge: 'Step 4'
+                  },
+                  {
+                    id: 'sdd',
+                    label: '5. Spec & Task Slices (spec.md / tasks.md)',
+                    icon: Layers,
+                    badge: 'Step 5'
+                  }
+                ]
           ).map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -2694,14 +3076,26 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 <div className="space-y-3">
                   <div>
-                    <label
-                      htmlFor="plain-idea-input"
-                      className="block text-xs font-medium text-slate-300 mb-1"
-                    >
-                      {dummyProofMode
-                        ? 'What should your app do?'
-                        : 'Plain-Language Feature / Application Idea'}
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label
+                        htmlFor="plain-idea-input"
+                        className="block text-xs font-medium text-slate-300"
+                      >
+                        {dummyProofMode
+                          ? 'What should your app do?'
+                          : 'Plain-Language Feature / Application Idea'}
+                      </label>
+                      <button
+                        type="button"
+                        disabled={expandingField === 'plainIdea'}
+                        onClick={() => handleAutoExpandField('plainIdea')}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs font-medium text-indigo-200 disabled:opacity-50 transition"
+                      >
+                        {expandingField === 'plainIdea'
+                          ? 'Expanding options...'
+                          : '✨ Auto-Expand Options'}
+                      </button>
+                    </div>
                     <textarea
                       id="plain-idea-input"
                       rows={4}
@@ -2710,6 +3104,13 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       placeholder="e.g., Build a real-time team Kanban board where managers can drag tasks, assign reviewers, and export CSV reports with strict role permissions..."
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                     />
+                    {expandedHighlights.plainIdea && (
+                      <ExpandedTextHighlight
+                        fieldKey="plainIdea"
+                        text={expandedHighlights.plainIdea}
+                        onClear={() => clearExpandedHighlight('plainIdea')}
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -3111,9 +3512,15 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </div>
 
               {dummyProofMode && (
-                <div className="flex justify-center pt-1">
+                <div className="flex flex-wrap items-center justify-center gap-4 pt-1">
                   <button
-                    onClick={() => handleToggleSimpleMode(false)}
+                    onClick={() => handleChangeViewMode('intermediate')}
+                    className="text-xs text-indigo-300 hover:text-indigo-200 underline underline-offset-4 transition"
+                  >
+                    Try Intermediate Mode (4 Tabs + Jargon Guide)
+                  </button>
+                  <button
+                    onClick={() => handleChangeViewMode('pro')}
                     className="text-xs text-slate-400 hover:text-indigo-300 underline underline-offset-4 transition"
                   >
                     Switch to Pro Mode to edit 5-Section Prompts, AGENTS.md &amp; EARS Specs
@@ -3128,7 +3535,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
              ---------------------------------------------------------------- */}
           {activeTab === 'prompt5' && (
             <div className="space-y-5">
-              {dummyProofMode && (
+              {showPlainHelpers && (
                 <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 flex items-start gap-3 text-xs text-amber-100">
                   <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
@@ -3140,12 +3547,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               )}
 
-              {/* Section 1: Role Persona & Primary Objective (Primacy Anchor) */}
+              {/* Section 1: Role Persona & Primary Objective (Top-Priority Rules) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
-                      Section 1 • Primacy Anchor (High Model Attention Weight)
+                      Section 1 • Top-Priority Rules (AI Attention Top Section)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Role Persona &amp; Primary Objective
@@ -3153,7 +3560,14 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
-                {dummyProofMode && (
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="Primacy Anchor"
+                    explanation="Putting your most important rules and AI role at the very top of the prompt where the AI reads them best."
+                  />
+                )}
+
+                {showPlainHelpers && (
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] text-slate-400">1-Click Role Chips:</span>
                     {QUICK_FILL_CHIPS.rolePersona.map((chip, i) => (
@@ -3194,26 +3608,64 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      1-Sentence Feature / Fix Objective
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        1-Sentence Feature / Fix Objective
+                      </label>
+                      <button
+                        type="button"
+                        disabled={expandingField === 'objective'}
+                        onClick={() => handleAutoExpandField('objective')}
+                        className="px-2 py-0.5 rounded bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-[11px] font-medium text-indigo-200 disabled:opacity-50 transition"
+                      >
+                        {expandingField === 'objective'
+                          ? 'Expanding options...'
+                          : '✨ Auto-Expand Options'}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={form.objective}
                       onChange={(e) => updateField('objective', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
                     />
+                    {expandedHighlights.objective && (
+                      <ExpandedTextHighlight
+                        fieldKey="objective"
+                        text={expandedHighlights.objective}
+                        onClear={() => clearExpandedHighlight('objective')}
+                      />
+                    )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Observable User Outcome ("so that...")
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Observable User Outcome ("so that...")
+                      </label>
+                      <button
+                        type="button"
+                        disabled={expandingField === 'observableOutcome'}
+                        onClick={() => handleAutoExpandField('observableOutcome')}
+                        className="px-2 py-0.5 rounded bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-[11px] font-medium text-indigo-200 disabled:opacity-50 transition"
+                      >
+                        {expandingField === 'observableOutcome'
+                          ? 'Expanding options...'
+                          : '✨ Auto-Expand Options'}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={form.observableOutcome}
                       onChange={(e) => updateField('observableOutcome', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
                     />
+                    {expandedHighlights.observableOutcome && (
+                      <ExpandedTextHighlight
+                        fieldKey="observableOutcome"
+                        text={expandedHighlights.observableOutcome}
+                        onClear={() => clearExpandedHighlight('observableOutcome')}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -3289,7 +3741,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         onChange={(e) => updateField('pinnedStack', e.target.value)}
                         className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                       />
-                      {dummyProofMode && (
+                      {showPlainHelpers && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {QUICK_FILL_CHIPS.pinnedStack.map((stackChip, idx) => (
                             <button
@@ -3371,29 +3823,97 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="State Invariants & TurboModules"
+                    explanation="Invariants are 'never-break' data & security laws (like keeping secrets out of the browser). TurboModules are high-speed bridges used when React Native apps talk to native phone hardware."
+                  />
+                )}
+
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      State Placement &amp; Architectural Boundary Rules (Direct Imperatives)
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={form.stateAndDataRules}
-                      onChange={(e) => updateField('stateAndDataRules', e.target.value)}
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Runtime, Threading, Accessibility &amp; Security Constraints
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={form.runtimeAndSecurityLimits}
-                      onChange={(e) => updateField('runtimeAndSecurityLimits', e.target.value)}
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
+                  {isIntermediateMode ? (
+                    <div className="space-y-2.5">
+                      <p className="text-xs font-medium text-slate-300">
+                        Plain-English Engineering Rules (check the rules you want enforced):
+                      </p>
+                      <div className="space-y-2">
+                        {INTERMEDIATE_RULE_PRESETS.map((rule) => {
+                          const checked = String(form[rule.targetField] || '').includes(
+                            rule.technicalRule
+                          );
+                          return (
+                            <label
+                              key={rule.id}
+                              className={`flex items-start gap-2.5 rounded-xl border p-3 cursor-pointer transition ${
+                                checked
+                                  ? 'bg-indigo-500/15 border-indigo-400/50 text-white'
+                                  : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => handleToggleIntermediateRule(rule)}
+                                className="mt-0.5 accent-indigo-500 rounded"
+                              />
+                              <div className="space-y-0.5">
+                                <span className="block text-xs font-semibold">{rule.label}</span>
+                                <span className="block text-[11px] text-slate-400">
+                                  {rule.helper}
+                                </span>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <details className="rounded-xl bg-slate-950/70 border border-slate-800 px-3 py-2 text-[11px] text-slate-400">
+                        <summary className="cursor-pointer font-medium text-slate-300 select-none">
+                          View generated technical rules added to your prompt
+                        </summary>
+                        <div className="mt-2 space-y-2 font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
+                          <div>
+                            <span className="text-indigo-300 font-semibold">
+                              State &amp; Data Rules:
+                            </span>
+                            {'\n'}
+                            {form.stateAndDataRules}
+                          </div>
+                          <div>
+                            <span className="text-amber-300 font-semibold">
+                              Runtime &amp; Security Limits:
+                            </span>
+                            {'\n'}
+                            {form.runtimeAndSecurityLimits}
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          State Placement &amp; Architectural Boundary Rules (Direct Imperatives)
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={form.stateAndDataRules}
+                          onChange={(e) => updateField('stateAndDataRules', e.target.value)}
+                          className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                          Runtime, Threading, Accessibility &amp; Security Constraints
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={form.runtimeAndSecurityLimits}
+                          onChange={(e) => updateField('runtimeAndSecurityLimits', e.target.value)}
+                          className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
                       Restricted / Generated Files (Forbidden to Edit by Hand)
@@ -3503,12 +4023,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               </div>
 
-              {/* Section 5: Verification Loop & Output Contract (Recency Anchor) */}
+              {/* Section 5: Verification Loop & Output Contract (Final Instructions) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400">
-                      Section 5 • Recency Anchor (High Model Attention Weight)
+                      Section 5 • Final Instructions (AI Attention Bottom Section)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Verification Loop &amp; Output Contract
@@ -3526,6 +4046,13 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </label>
                 </div>
 
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="Recency Anchor"
+                    explanation="Putting exact test and verification commands at the very bottom of the prompt so the AI runs checks right before finishing."
+                  />
+                )}
+
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
@@ -3537,7 +4064,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       onChange={(e) => updateField('verificationCommands', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs font-mono text-purple-200 focus:outline-none focus:border-indigo-500"
                     />
-                    {dummyProofMode && (
+                    {showPlainHelpers && (
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
                         <span className="text-[10px] text-slate-400">1-Click Test Commands:</span>
                         {QUICK_FILL_CHIPS.verificationCommands.map((cmd, idx) => (
@@ -3592,6 +4119,13 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     Preview AGENTS.md →
                   </button>
                 </div>
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="10-Section AGENTS.md"
+                    explanation="A standardized README written specifically for AI coding agents so Antigravity, Copilot, and Jules automatically follow your project's build and testing rules."
+                  />
+                )}
 
                 {/* All 10 Standard Sections */}
                 <div className="space-y-4">
@@ -3762,18 +4296,18 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       Google Antigravity • .agents/rules/*.md &amp; .agents/skills/*/SKILL.md
                     </span>
                     <h3 className="text-base font-semibold text-white">
-                      Modular Rules &amp; Agent Skills Configurator (Silent-Discard Protected)
+                      Modular Rules &amp; Agent Skills Configurator
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-xs px-2.5 py-1 rounded-full font-mono ${
-                        diagnostics.agyRuleBytes < diagnostics.agyRuleLimit
+                      className={`text-xs px-2.5 py-1 rounded-full ${
+                        diagnostics.isRuleSizeSafe
                           ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                           : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                       }`}
                     >
-                      Rule Size: {diagnostics.agyRuleBytes} / 24,000 bytes
+                      🟢 Rule Size: {diagnostics.ruleSizeMessage}
                     </span>
                   </div>
                 </div>
@@ -3781,7 +4315,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Rule File Name (Flat <code>.agents/rules/</code> scan only)
+                      Rule File Name (<code>.agents/rules/</code>)
                     </label>
                     <input
                       type="text"
@@ -3792,29 +4326,30 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs font-mono text-white"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Slashes are automatically converted to hyphens so Antigravity's flat directory
-                      scanner never silently ignores the rule.
+                      Slashes are automatically turned into hyphens so Antigravity always finds your
+                      rule file.
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Mandatory YAML <code>snake_case</code> Trigger
+                      When Should Antigravity Load This Rule?
                     </label>
                     <select
                       value={form.agyTrigger}
                       onChange={(e) => updateField('agyTrigger', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white"
                     >
-                      <option value="always_on">always_on (Injected on every turn)</option>
+                      <option value="always_on">always_on (Loaded in every chat)</option>
                       <option value="model_decision">
-                        model_decision (Progressive disclosure via description)
+                        model_decision (AI loads it automatically when relevant)
                       </option>
-                      <option value="glob">glob (Activates when touching matching files)</option>
-                      <option value="manual">manual (Loaded only when @-mentioned in IDE)</option>
+                      <option value="glob">glob (Loaded when editing matching files)</option>
+                      <option value="manual">manual (Loaded only when you @-mention it)</option>
                     </select>
                     <p className="text-[11px] text-amber-300/80 mt-1">
-                      Prevents silent discard caused by camelCase triggers (like alwaysOn).
+                      Uses standard underscore names so Antigravity loads your rule reliably every
+                      time.
                     </p>
                   </div>
                 </div>
@@ -3822,7 +4357,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 {form.agyTrigger === 'glob' && (
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Glob Pattern (Automatically quoted to prevent YAML <code>*</code> alias errors)
+                      File Match Pattern (Automatically quoted for safe formatting)
                     </label>
                     <input
                       type="text"
@@ -3847,7 +4382,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Third-Person Intent-Driven Skill Description (What + When to Trigger)
+                      Skill Summary (What it does &amp; when the AI should use it)
                     </label>
                     <input
                       type="text"
@@ -3887,8 +4422,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       Path-Scoped Instructions &amp; Specialist Agent Pipeline
                     </h3>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                    .agent.md: {diagnostics.copilotAgentChars} / 30,000 chars
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    🟢 Agent File Size: {diagnostics.copilotSizeMessage}
                   </span>
                 </div>
 
@@ -4037,7 +4572,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
-                      Stage 1 • /speckit.constitution (.specify/memory/constitution.md)
+                      Stage 1 • Core Project Laws (.specify/memory/constitution.md)
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Immutable Engineering Principles
@@ -4058,15 +4593,15 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 />
               </div>
 
-              {/* Stage 2: EARS Notation Requirements Builder (spec.md) */}
+              {/* Stage 2: Step-by-Step Goal Checks (When/Then Rules) (spec.md) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
-                      Stage 2 • /speckit.specify (Zone A: Zero Tech-Stack Bias)
+                      Stage 2 • Feature Goals &amp; When/Then Rules (No Tech-Stack Bias)
                     </span>
                     <h3 className="text-base font-semibold text-white">
-                      EARS Notation Acceptance Criteria Builder (<code>spec.md</code>)
+                      Step-by-Step Goal Checks (When/Then Rules) (<code>spec.md</code>)
                     </h3>
                     <p className="text-xs text-slate-400">
                       Pair concrete trigger conditions (<strong>WHEN</strong>) with explicit
@@ -4078,7 +4613,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       onClick={addEars}
                       className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 text-xs flex items-center gap-1"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add EARS Statement
+                      <Plus className="w-3.5 h-3.5" /> Add Goal Check
                     </button>
                     <button
                       onClick={() => setSelectedArtifact('specs/001-feature/spec.md')}
@@ -4089,6 +4624,13 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="EARS Notation"
+                    explanation="A simple 'WHEN [trigger] -> THE SYSTEM SHALL [result]' format that removes ambiguity so your AI writes exact behavior and tests."
+                  />
+                )}
+
                 <div className="space-y-3">
                   {form.earsSpecs.map((item, idx) => (
                     <div
@@ -4097,7 +4639,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-cyan-300">
-                          EARS Requirement #{idx + 1}
+                          Goal Check #{idx + 1} (When / Then)
                         </span>
                         <button
                           onClick={() => removeEars(idx)}
@@ -4135,21 +4677,21 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               </div>
 
-              {/* Stage 5 & 6: Vertical-Slice ("Tracer Bullet") Task Decomposer (tasks.md) */}
+              {/* Stage 3: Step-by-Step Task Breakdown (tasks.md) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-                      Stage 5 &amp; 6 • /speckit.tasks &amp; Subagent Execution (Zone B)
+                      Stage 3 • Full-Feature Task Breakdown &amp; Parallel Execution
                     </span>
                     <h3 className="text-base font-semibold text-white">
-                      Vertical-Slice ("Tracer Bullet") Task Decomposer (<code>tasks.md</code>)
+                      Step-by-Step Task Breakdown (Full Features, Not Horizontal Layers) (
+                      <code>tasks.md</code>)
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Never slice horizontally. Every slice cuts end-to-end across schema, service,
-                      boundary, UI, and tests. Tag <code>[HITL]</code> vs <code>[AFK]</code> and{' '}
-                      <code>[P]</code> for parallel <code>/fleet</code> or <code>/teamwork</code>{' '}
-                      subagents.
+                      Build one complete feature slice at a time across data, service, boundary,
+                      UI, and tests. Tag <code>[HITL]</code> (Human Review) vs <code>[AFK]</code>{' '}
+                      (Automatic) and <code>[P]</code> for parallel execution.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -4157,7 +4699,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       onClick={addSlice}
                       className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Vertical Slice
+                      <Plus className="w-3.5 h-3.5" /> Add Feature Task
                     </button>
                     <button
                       onClick={() => setSelectedArtifact('specs/001-feature/tasks.md')}
@@ -4168,72 +4710,164 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="Vertical Slices"
+                    explanation="Building one complete working mini-feature end-to-end (data, UI, and tests) at a time instead of unfinished horizontal layers."
+                  />
+                )}
+
                 <div className="space-y-3">
-                  {form.verticalSlices.map((slice, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl bg-slate-950 border border-slate-800 p-3.5 space-y-2.5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                  {form.verticalSlices.map((slice, idx) =>
+                    isIntermediateMode ? (
+                      <div
+                        key={idx}
+                        className="rounded-xl bg-slate-950 border border-slate-800 p-3.5 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-indigo-300">
+                              {slice.id}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                slice.mode === 'HITL'
+                                  ? 'bg-amber-500/15 text-amber-200 border-amber-500/40'
+                                  : 'bg-emerald-500/15 text-emerald-200 border-emerald-500/40'
+                              }`}
+                            >
+                              {slice.mode === 'HITL'
+                                ? '[HITL] Human Review'
+                                : '[AFK] Runs Automatically'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label={`Remove task ${slice.id}`}
+                            onClick={() => removeSlice(idx)}
+                            className="text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                            What does this checklist item build?
+                          </label>
                           <input
                             type="text"
-                            value={slice.id}
-                            onChange={(e) => editSlice(idx, 'id', e.target.value)}
-                            className="w-16 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs font-mono font-bold text-indigo-300"
+                            aria-label={`Task ${idx + 1} title`}
+                            value={slice.title}
+                            onChange={(e) =>
+                              updateIntermediateSlice(idx, { title: e.target.value })
+                            }
+                            className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                           />
-                          <select
-                            value={slice.mode}
-                            onChange={(e) => editSlice(idx, 'mode', e.target.value)}
-                            className="rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs text-white"
-                          >
-                            <option value="HITL">[HITL] Co-Piloted</option>
-                            <option value="AFK">[AFK] Autonomous</option>
-                          </select>
-                          <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={slice.mode === 'HITL'}
+                              onChange={(e) =>
+                                updateIntermediateSlice(idx, {
+                                  needsHumanReview: e.target.checked
+                                })
+                              }
+                              className="accent-amber-500 rounded"
+                            />
+                            <span>
+                              Needs human review (<code>[HITL]</code>) — uncheck to run
+                              automatically (<code>[AFK]</code>)
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={slice.parallel}
-                              onChange={(e) => editSlice(idx, 'parallel', e.target.checked)}
-                              className="accent-emerald-500"
+                              onChange={(e) =>
+                                updateIntermediateSlice(idx, { parallel: e.target.checked })
+                              }
+                              className="accent-emerald-500 rounded"
                             />
-                            <span>[P] Parallelizable</span>
+                            <span>Can run in parallel</span>
                           </label>
                         </div>
-                        <button
-                          onClick={() => removeSlice(idx)}
-                          className="text-slate-500 hover:text-rose-400"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                            Slice Title
-                          </span>
-                          <input
-                            type="text"
-                            value={slice.title}
-                            onChange={(e) => editSlice(idx, 'title', e.target.value)}
-                            className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white"
-                          />
+                        <p className="text-[11px] text-emerald-300/90 bg-emerald-950/30 border border-emerald-500/20 rounded-lg px-2.5 py-1.5">
+                          Auto-generated tracer bullet layers:{' '}
+                          <span className="font-mono text-emerald-200">{slice.layers}</span>
+                        </p>
+                      </div>
+                    ) : (
+                      <div
+                        key={idx}
+                        className="rounded-xl bg-slate-950 border border-slate-800 p-3.5 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={slice.id}
+                              onChange={(e) => editSlice(idx, 'id', e.target.value)}
+                              className="w-16 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs font-mono font-bold text-indigo-300"
+                            />
+                            <select
+                              value={slice.mode}
+                              onChange={(e) => editSlice(idx, 'mode', e.target.value)}
+                              className="rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs text-white"
+                            >
+                              <option value="HITL">[HITL] Co-Piloted</option>
+                              <option value="AFK">[AFK] Autonomous</option>
+                            </select>
+                            <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={slice.parallel}
+                                onChange={(e) => editSlice(idx, 'parallel', e.target.checked)}
+                                className="accent-emerald-500"
+                              />
+                              <span>[P] Parallelizable</span>
+                            </label>
+                          </div>
+                          <button
+                            onClick={() => removeSlice(idx)}
+                            className="text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div>
-                          <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                            End-to-End Integration Layers Included
-                          </span>
-                          <input
-                            type="text"
-                            value={slice.layers}
-                            onChange={(e) => editSlice(idx, 'layers', e.target.value)}
-                            className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs font-mono text-emerald-200"
-                          />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                              Slice Title
+                            </span>
+                            <input
+                              type="text"
+                              value={slice.title}
+                              onChange={(e) => editSlice(idx, 'title', e.target.value)}
+                              className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                              End-to-End Integration Layers Included
+                            </span>
+                            <input
+                              type="text"
+                              value={slice.layers}
+                              onChange={(e) => editSlice(idx, 'layers', e.target.value)}
+                              className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs font-mono text-emerald-200"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
             </div>
@@ -4350,8 +4984,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </div>
 
               {/* File Selector Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto pr-1">
-                {isSimpleDockFiltered
+              <div
+                className={`flex flex-wrap items-center gap-1.5 overflow-y-auto pr-1 ${
+                  isDockFiltered && isIntermediateMode ? 'max-h-48' : 'max-h-28'
+                }`}
+              >
+                {isDockFiltered && isSimpleMode
                   ? SIMPLE_ESSENTIAL_FILES.map(({ key: fileKey, label }) => {
                       const active = fileKey === currentArtifactKey;
                       return (
@@ -4368,52 +5006,110 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         </button>
                       );
                     })
-                  : Object.entries(artifacts).map(([fileKey]) => {
-                      const active = fileKey === currentArtifactKey;
-                      return (
-                        <button
-                          key={fileKey}
-                          onClick={() => setSelectedArtifact(fileKey)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition flex items-center gap-1.5 border ${
-                            active
-                              ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
-                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/70'
-                          }`}
-                        >
-                          <span>{fileKey}</span>
-                        </button>
-                      );
-                    })}
-                {dummyProofMode && (
+                  : isDockFiltered && isIntermediateMode
+                    ? INTERMEDIATE_CORE_FILES.map(({ key: fileKey, label, subtitle }) => {
+                        const active = fileKey === currentArtifactKey;
+                        return (
+                          <button
+                            key={fileKey}
+                            onClick={() => setSelectedArtifact(fileKey)}
+                            title={subtitle}
+                            className={`px-2.5 py-1.5 rounded-lg text-left transition flex flex-col gap-0.5 border ${
+                              active
+                                ? 'bg-indigo-500/25 text-indigo-100 border-indigo-400/60'
+                                : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-800/70'
+                            }`}
+                          >
+                            <span className="text-[11px] font-mono font-semibold">{label}</span>
+                            <span className="text-[10px] text-slate-400 leading-tight">
+                              {subtitle}
+                            </span>
+                          </button>
+                        );
+                      })
+                    : Object.entries(artifacts).map(([fileKey, item]) => {
+                        const active = fileKey === currentArtifactKey;
+                        const tooltip =
+                          FILE_USAGE_GUIDE[fileKey]?.whatIsIt || item.title || fileKey;
+                        return (
+                          <button
+                            key={fileKey}
+                            onClick={() => setSelectedArtifact(fileKey)}
+                            title={tooltip}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition flex items-center gap-1.5 border ${
+                              active
+                                ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/70'
+                            }`}
+                          >
+                            <span>{fileKey}</span>
+                          </button>
+                        );
+                      })}
+                {!isProMode && (
                   <button
                     type="button"
                     onClick={() => setShowAllSimpleFiles((prev) => !prev)}
                     className="px-2 py-1 text-[11px] font-medium text-indigo-300 hover:text-indigo-200 underline underline-offset-2 transition"
                   >
                     {showAllSimpleFiles
-                      ? 'Show 3 essential files only'
+                      ? isSimpleMode
+                        ? 'Show 3 essential files only'
+                        : 'Show 6 core files only'
                       : 'Show all 14 advanced files'}
                   </button>
                 )}
               </div>
 
-              {/* Live Contract Diagnostics Bar (Pro Mode only) */}
-              {!dummyProofMode && (
-                <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
-                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                    <span className="text-slate-400">Primacy/Recency:</span>
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Locked
-                    </span>
+              {/* Live Prompt Health & AI Memory Bar (Intermediate & Pro Modes) */}
+              {!isSimpleMode && (
+                <div className="space-y-1.5 pt-1 text-[11px]">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div
+                      title="Top/Bottom Focus: Top-Priority Rules and Final Instructions are active, and rule files are within safe limits"
+                      className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-2 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-emerald-300">🟢 Rule Size</span>
+                        <span className="text-[10px] text-slate-400">Top/Bottom Focus: Ready</span>
+                      </div>
+                      <p className="text-slate-300 leading-snug">{diagnostics.ruleSizeMessage}</p>
+                    </div>
+                    <div
+                      title="Prompt size health check for fast, accurate AI responses"
+                      className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-2 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-cyan-300">🔵 Prompt Length</span>
+                      </div>
+                      <p className="text-slate-300 leading-snug">
+                        {diagnostics.promptLengthMessage}
+                      </p>
+                    </div>
+                    <div
+                      title="AI Memory Limits check so the AI never forgets your instructions"
+                      className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-2 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-purple-300">🟣 Memory Safety</span>
+                        <span className="text-[10px] text-slate-400">AI Memory Limits: OK</span>
+                      </div>
+                      <p className="text-slate-300 leading-snug">
+                        {diagnostics.memorySafetyMessage}
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                    <span className="text-slate-400">Est. Prompt:</span>
-                    <span className="text-cyan-300 font-mono">~{diagnostics.estTokens} tok</span>
-                  </div>
-                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                    <span className="text-slate-400">Context Rot Limit:</span>
-                    <span className="text-indigo-300 font-mono">&lt;120k OK</span>
-                  </div>
+                  {(diagnostics.isPromptLong ||
+                    !diagnostics.isRuleSizeSafe ||
+                    !diagnostics.isCopilotSizeSafe) && (
+                    <div className="rounded-lg bg-amber-500/15 border border-amber-400/40 px-3 py-2 text-amber-100 flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>
+                        Your prompt is getting a bit long; consider starting a fresh AI chat or
+                        trimming extra notes so the AI stays focused.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -4426,8 +5122,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </span>
             </div>
 
-            {/* Dummy-Proof "Where Does This File Go?" Banner */}
-            {dummyProofMode && (
+            {/* Plain-Language "Where Does This File Go?" Banner */}
+            {showPlainHelpers && (
               <div className="px-4 py-2.5 bg-indigo-950/40 border-b border-indigo-500/30 space-y-1 text-xs">
                 <p className="text-indigo-200 font-medium flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
