@@ -21,7 +21,7 @@ export function resolveSafeChildPath(rootDir: string, relativePath: string): str
   const resolvedTarget = path.resolve(resolvedRoot, normalizedInput);
   const rel = path.relative(resolvedRoot, resolvedTarget);
 
-  if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
     throw new Error(`Path traversal rejected: ${relativePath}`);
   }
 

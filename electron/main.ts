@@ -163,15 +163,32 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) {
-      void shell.openExternal(url);
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        void shell.openExternal(url);
+      }
+    } catch {
+      // Invalid URL
     }
     return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
-    const allowedOrigin = isDev ? 'http://localhost:5173' : 'file://';
-    if (!targetUrl.startsWith(allowedOrigin)) {
+    try {
+      const parsedUrl = new URL(targetUrl);
+      if (isDev) {
+        const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+        const allowedOrigin = new URL(devUrl).origin;
+        if (parsedUrl.origin !== allowedOrigin) {
+          event.preventDefault();
+        }
+      } else {
+        if (parsedUrl.protocol !== 'file:') {
+          event.preventDefault();
+        }
+      }
+    } catch {
       event.preventDefault();
     }
   });
@@ -210,10 +227,10 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     'dialog:saveFile',
     async (_event, args: { suggestedFilename: string; content: string }) => {
-      if (!args || typeof args.content !== 'string') {
+      if (!args || typeof args.content !== 'string' || (args.suggestedFilename !== undefined && typeof args.suggestedFilename !== 'string')) {
         return { canceled: true, error: 'Invalid file payload' };
       }
-      const cleanName = path.basename(String(args.suggestedFilename || 'artifact.md'));
+      const cleanName = path.basename(args.suggestedFilename || 'artifact.md');
       const result = await dialog.showSaveDialog(mainWindow ?? undefined!, {
         title: 'Save SpecForge Artifact',
         defaultPath: path.join(os.homedir(), cleanName),
@@ -298,15 +315,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     'blueprints:save',
     (_event, input: Omit<SavedBlueprint, 'id' | 'updatedAt'> & { id?: string }): SavedBlueprint => {
-      if (!input || typeof input.formState !== 'string') {
+      if (!input || typeof input.formState !== 'string' || (input.title !== undefined && typeof input.title !== 'string') || (input.id !== undefined && typeof input.id !== 'string') || (input.syncCode !== undefined && typeof input.syncCode !== 'string')) {
         throw new Error('Invalid blueprint payload');
       }
       const dir = getBlueprintsDir();
       const id = sanitizeBlueprintId(input.id || input.title || 'blueprint');
       const record: SavedBlueprint = {
         id,
-        title: String(input.title || 'Untitled Blueprint').trim() || 'Untitled Blueprint',
-        syncCode: input.syncCode ? String(input.syncCode).trim().toLowerCase() : '',
+        title: input.title?.trim() || 'Untitled Blueprint',
+        syncCode: input.syncCode ? input.syncCode.trim().toLowerCase() : '',
         updatedAt: Date.now(),
         formState: input.formState
       };
@@ -318,6 +335,7 @@ function registerIpcHandlers(): void {
   );
 
   ipcMain.handle('blueprints:delete', (_event, id: string): boolean => {
+    if (typeof id !== 'string') throw new Error('Invalid id');
     const dir = getBlueprintsDir();
     const safeId = sanitizeBlueprintId(id);
     const filePath = resolveSafeChildPath(dir, `${safeId}.json`);
@@ -329,7 +347,10 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('blueprints:exportFile', async (_event, blueprint: SavedBlueprint) => {
-    const safeSlug = sanitizeBlueprintId(blueprint?.title || 'specforge-blueprint');
+    if (!blueprint || typeof blueprint !== 'object' || (blueprint.title !== undefined && typeof blueprint.title !== 'string')) {
+      return { canceled: true, error: 'Invalid blueprint payload' };
+    }
+    const safeSlug = sanitizeBlueprintId(blueprint.title || 'specforge-blueprint');
     const result = await dialog.showSaveDialog(mainWindow ?? undefined!, {
       title: 'Export SpecForge Blueprint (.specforge.json)',
       defaultPath: path.join(os.homedir(), `${safeSlug}.specforge.json`),
@@ -384,6 +405,9 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('ai:generateStructured', async (_event, req: GeminiStructuredRequest) => {
+    if (!req || typeof req.userQuery !== 'string' || typeof req.systemPrompt !== 'string' || !req.responseSchema || typeof req.responseSchema !== 'object') {
+      throw new Error('Invalid request payload');
+    }
     const { key } = readStoredGeminiKey();
     if (!key) {
       throw new Error(
@@ -427,9 +451,15 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('shell:openExternal', async (_event, url: string): Promise<boolean> => {
-    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
-      await shell.openExternal(url);
-      return true;
+    if (typeof url !== 'string') return false;
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        await shell.openExternal(url);
+        return true;
+      }
+    } catch {
+      // Invalid URL
     }
     return false;
   });

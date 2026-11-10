@@ -15,6 +15,16 @@ describe('resolveSafeChildPath', () => {
     );
   });
 
+  it('handles mixed and trailing slashes safely', () => {
+    expect(resolveSafeChildPath(root, 'foo\\bar/baz')).toBe(path.join(root, 'foo', 'bar', 'baz'));
+    expect(resolveSafeChildPath(root, 'foo/bar/')).toBe(path.join(root, 'foo', 'bar'));
+  });
+
+  it('handles safe dot-segments', () => {
+    expect(resolveSafeChildPath(root, './AGENTS.md')).toBe(path.join(root, 'AGENTS.md'));
+    expect(resolveSafeChildPath(root, '.')).toBe(root);
+  });
+
   it('rejects parent directory traversal attempts', () => {
     expect(() => resolveSafeChildPath(root, '../etc/passwd')).toThrow(/Path traversal/);
     expect(() => resolveSafeChildPath(root, '.agents/../../outside.txt')).toThrow(/Path traversal/);
@@ -32,6 +42,13 @@ describe('sanitizeBlueprintId', () => {
   it('normalizes project titles into safe filename slugs', () => {
     expect(sanitizeBlueprintId('My Invoice Approval App!')).toBe('my-invoice-approval-app');
     expect(sanitizeBlueprintId('../../../evil')).toBe('evil');
+  });
+
+  it('handles empty/whitespace blueprint titles safely', () => {
+    expect(sanitizeBlueprintId('   ')).toMatch(/^blueprint-\d+$/);
+    expect(sanitizeBlueprintId('')).toMatch(/^blueprint-\d+$/);
+    expect(sanitizeBlueprintId(null as any)).toMatch(/^blueprint-\d+$/);
+    expect(sanitizeBlueprintId(undefined as any)).toMatch(/^blueprint-\d+$/);
   });
 
   it('falls back to timestamped blueprint id if empty after sanitization', () => {
