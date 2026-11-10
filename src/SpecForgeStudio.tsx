@@ -1113,6 +1113,9 @@ export default function SpecForgeStudio() {
   });
 
   // AI Loading & Socratic /grill-me Interview State
+  // Keep track of the initially loaded state for unsaved changes detection
+  const [baselineState, setBaselineState] = useState({ projectTitle, form });
+
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [isGrilling, setIsGrilling] = useState(false);
   const [grillQuestions, setGrillQuestions] = useState<
@@ -1172,6 +1175,7 @@ export default function SpecForgeStudio() {
       localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
       setSavedPresets(next);
       setPresetNameInput('');
+      setBaselineState({ projectTitle, form });
       setStatusMessageWithTimeout({
         type: 'success',
         text: `Saved preset "${trimmed}" to local storage.`
@@ -1191,17 +1195,25 @@ export default function SpecForgeStudio() {
     formState: any;
     updatedAt: number;
   }) => {
-    setProjectTitle(preset.projectTitle || preset.name);
-    setForm((prev: any) => ({
+    if (JSON.stringify({ projectTitle, form }) !== JSON.stringify(baselineState)) {
+      if (!window.confirm("You have unsaved changes in your active draft. Overwrite?")) {
+        return;
+      }
+    }
+    const newProjectTitle = preset.projectTitle || preset.name;
+    const newForm = {
       ...DEFAULT_FORM,
-      ...prev,
+      ...form,
       ...preset.formState,
       uiStates: {
         ...DEFAULT_FORM.uiStates,
-        ...(prev.uiStates || {}),
+        ...(form.uiStates || {}),
         ...(preset.formState?.uiStates || {})
       }
-    }));
+    };
+    setProjectTitle(newProjectTitle);
+    setForm(newForm);
+    setBaselineState({ projectTitle: newProjectTitle, form: newForm });
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'success',
@@ -1227,15 +1239,23 @@ export default function SpecForgeStudio() {
   };
 
   const handleResetToDefaultPreset = () => {
-    setProjectTitle('My Invoice Approval App');
-    setForm({
+    if (JSON.stringify({ projectTitle, form }) !== JSON.stringify(baselineState)) {
+      if (!window.confirm("You have unsaved changes in your active draft. Overwrite?")) {
+        return;
+      }
+    }
+    const newProjectTitle = 'My Invoice Approval App';
+    const newForm = {
       ...DEFAULT_FORM,
       uiStates: {
         ...DEFAULT_FORM.uiStates
       },
       earsSpecs: [...DEFAULT_FORM.earsSpecs],
       verticalSlices: [...DEFAULT_FORM.verticalSlices]
-    });
+    };
+    setProjectTitle(newProjectTitle);
+    setForm(newForm);
+    setBaselineState({ projectTitle: newProjectTitle, form: newForm });
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'info',

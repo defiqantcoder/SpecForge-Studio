@@ -525,6 +525,61 @@ describe('SpecForgeStudio Desktop UI', () => {
     });
   });
 
+  it('displays a confirmation prompt when resetting or loading a preset with unsaved changes', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Change a value so state diverges from baseline
+    const ideaTextarea = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Draft with unsaved changes' }
+    });
+
+    // Try Resetting (Cancel the confirm)
+    confirmSpy.mockReturnValueOnce(false);
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    fireEvent.click(savedProjectsBtn);
+    const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
+    fireEvent.click(resetBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes in your active draft. Overwrite?');
+    // Value should not change since we cancelled
+    expect(ideaTextarea.value).toBe('Draft with unsaved changes');
+
+    // Now Save it so we can test Load
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'My Unsaved Draft Preset' } });
+    const savePresetBtn = screen.getByRole('button', { name: /Save Current as Preset/i });
+    fireEvent.click(savePresetBtn);
+
+    // Change value again
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Even more unsaved changes' }
+    });
+
+    // Try Loading (Cancel the confirm)
+    confirmSpy.mockReturnValueOnce(false);
+    const loadPresetBtn = screen.getByRole('button', { name: /Load preset My Unsaved Draft Preset/i });
+    fireEvent.click(loadPresetBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes in your active draft. Overwrite?');
+    // Value should not change since we cancelled
+    expect(ideaTextarea.value).toBe('Even more unsaved changes');
+
+    // Try Loading (Accept the confirm)
+    confirmSpy.mockReturnValueOnce(true);
+    fireEvent.click(loadPresetBtn);
+
+    // Value should now be the loaded preset value
+    expect(ideaTextarea.value).toBe('Draft with unsaved changes');
+
+    confirmSpy.mockRestore();
+  });
+
   it('evaluates Prompt Readiness Scorecard live and navigates/focuses missing fields on Fix Now', async () => {
     render(<SpecForgeStudio />);
 
