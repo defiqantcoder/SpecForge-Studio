@@ -340,7 +340,7 @@ describe('SpecForgeStudio Desktop UI', () => {
     });
   });
 
-  it.each([{}, { error: 'Keep imported error handling' }])(
+  it.each([{}, { error: 'Keep imported error handling' }, { loading: 'Show spinner', empty: '   ' }, { loading: 'Show spinner', empty: 'Show empty list', error: 'Show error', offline: 'Show offline', disabled: 'Explain disabled' }])(
     'renders and focuses missing UI states after importing %j',
     async (uiStates) => {
       vi.mocked(mockApi.importBlueprintFile).mockResolvedValue({
@@ -362,14 +362,16 @@ describe('SpecForgeStudio Desktop UI', () => {
       fireEvent.click(screen.getByText(/Needs Details \(\d+%\)|Good \(\d+%\)|Production-Ready/i, { selector: 'button' }));
       const row = screen.getByText('Explicit UI states defined').closest('div')!.parentElement!;
       fireEvent.click(within(row).getByRole('button', { name: 'Fix Now' }));
-      const loading = await screen.findByRole('textbox', { name: 'loading State' });
+      const stateOrder = ['loading', 'empty', 'error', 'offline', 'disabled', 'success'];
+      const firstIncomplete = stateOrder.find((state) => !uiStates[state]?.trim())!;
+      const target = await screen.findByRole('textbox', { name: `${firstIncomplete} State` });
       for (const state of ['loading', 'empty', 'error', 'offline', 'disabled', 'success']) {
         const input = screen.getByRole('textbox', { name: `${state} State` }) as HTMLInputElement;
         expect(input.value).toBe(uiStates[state] ?? '');
       }
-      await waitFor(() => expect(document.activeElement).toBe(loading));
-      fireEvent.change(loading, { target: { value: 'Show a spinner' } });
-      expect((loading as HTMLInputElement).value).toBe('Show a spinner');
+      await waitFor(() => expect(document.activeElement).toBe(target));
+      fireEvent.change(target, { target: { value: 'Show a spinner' } });
+      expect((target as HTMLInputElement).value).toBe('Show a spinner');
       expect((screen.getByRole('textbox', { name: 'error State' }) as HTMLInputElement).value)
         .toBe(uiStates.error ?? '');
       expect(document.querySelector('pre')?.textContent).toContain('Keep imported objective');
@@ -406,6 +408,27 @@ describe('SpecForgeStudio Desktop UI', () => {
       }
     }
   );
+
+  it.each([
+    { earsSpecs: [{ when: 'Trigger', shall: 'Respond' }, { when: 'Other trigger', shall: 'Other response' }, { when: ' ', shall: '' }], complete: true },
+    { earsSpecs: [{ when: 'Trigger', shall: 'Respond' }, { when: ' ', shall: 'Response' }, { when: 'Trigger', shall: '  ' }], complete: false },
+    { earsSpecs: [], complete: false }
+  ])('counts only complete EARS entries: $complete', async ({ earsSpecs, complete }) => {
+    vi.mocked(mockApi.importBlueprintFile).mockResolvedValue({
+      canceled: false,
+      blueprint: {
+        id: 'ears', title: 'EARS project', tag: '', updatedAt: 1,
+        formState: JSON.stringify({ earsSpecs })
+      }
+    });
+    render(<SpecForgeStudio />);
+    fireEvent.click(screen.getByRole('button', { name: /Blueprints \(/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Import .specforge.json/i }));
+    await screen.findByText(/Loaded "EARS project"/);
+    fireEvent.click(screen.getByText(/Needs Details \(\d+%\)|Good \(\d+%\)|Production-Ready/i, { selector: 'button' }));
+    const row = screen.getByText('Testable acceptance criteria (>=2)').closest('div')!.parentElement!;
+    expect(within(row).queryByRole('button', { name: 'Fix Now' }) === null).toBe(complete);
+  });
 
   it('renders and interacts with the Prompt Readiness Scorecard', async () => {
     render(<SpecForgeStudio />);
