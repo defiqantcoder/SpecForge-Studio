@@ -124,11 +124,15 @@ function maskKey(key: string): string {
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
+  const tempPath = `${settingsPath}.tmp`;
   fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 
   if (!trimmed) {
     if (fs.existsSync(settingsPath)) {
-      fs.writeFileSync(settingsPath, JSON.stringify({}, null, 2), 'utf8');
+      fs.writeFileSync(tempPath, JSON.stringify({}, null, 2), { encoding: 'utf8', mode: 0o600 });
+      fs.chmodSync(tempPath, 0o600);
+      fs.renameSync(tempPath, settingsPath);
+      fs.chmodSync(settingsPath, 0o600);
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {
@@ -145,7 +149,11 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
     payload.geminiKeyPlain = trimmed;
   }
 
-  fs.writeFileSync(settingsPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+  fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+  fs.chmodSync(tempPath, 0o600);
+  fs.renameSync(tempPath, settingsPath);
+  fs.chmodSync(settingsPath, 0o600);
+
   return {
     hasKey: true,
     source: 'stored',

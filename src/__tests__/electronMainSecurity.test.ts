@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as fsMock from 'fs';
 
 vi.mock('electron', () => {
   const ipcHandlers = new Map<string, Function>();
@@ -40,6 +41,9 @@ vi.mock('electron', () => {
     BrowserWindow,
     shell: {
       openExternal: vi.fn()
+    },
+    safeStorage: {
+      isEncryptionAvailable: vi.fn().mockReturnValue(false)
     }
   };
 });
@@ -51,6 +55,7 @@ vi.mock('fs', () => ({
   writeFileSync: vi.fn(),
   readFileSync: vi.fn(),
   chmodSync: vi.fn(),
+  renameSync: vi.fn(),
   readdirSync: vi.fn(),
   unlinkSync: vi.fn()
 }));
@@ -118,6 +123,36 @@ describe('Electron Main Security', () => {
   });
 
   describe('settings:setGeminiKey handler', () => {
+    it('should write API key securely via atomic rename and explicit chmod', async () => {
+      const handlers = (ipcMain as any)._getHandlers();
+      const handler = handlers.get('settings:setGeminiKey');
+      expect(handler).toBeDefined();
+
+      const apiKey = 'test-api-key';
+      handler(mockEvent, apiKey);
+
+      expect(vi.mocked(fsMock.writeFileSync)).toHaveBeenCalledWith(
+        expect.stringMatching(/\.tmp$/),
+        expect.any(String),
+        expect.objectContaining({ mode: 0o600 })
+      );
+
+      expect(vi.mocked(fsMock.chmodSync)).toHaveBeenCalledWith(
+        expect.stringMatching(/\.tmp$/),
+        0o600
+      );
+
+      expect(vi.mocked(fsMock.renameSync)).toHaveBeenCalledWith(
+        expect.stringMatching(/\.tmp$/),
+        expect.not.stringMatching(/\.tmp$/)
+      );
+
+      expect(vi.mocked(fsMock.chmodSync)).toHaveBeenCalledWith(
+        expect.not.stringMatching(/\.tmp$/),
+        0o600
+      );
+    });
+
     it('should handle malformed payloads safely', async () => {
       const handlers = (ipcMain as any)._getHandlers();
       const handler = handlers.get('settings:setGeminiKey');
