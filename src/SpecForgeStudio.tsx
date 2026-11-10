@@ -452,6 +452,30 @@ export default function SpecForgeStudio() {
   // Status banner message
   const [statusMessage, setStatusMessage] = useState<{ type: string; text: string } | null>(null);
 
+  // Timeout refs to clean up on unmount or re-trigger
+  const statusTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
+
+  /** Sets statusMessage and clears only if it is still the active message when the timer expires. */
+  const setStatusMessageWithTimeout = (msg: { type: string; text: string } | null, duration: number = 4000) => {
+    setStatusMessage(msg);
+    if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+    if (msg !== null) {
+      statusTimeoutRef.current = setTimeout(
+        () => setStatusMessage((current) => (current === msg ? null : current)),
+        duration
+      );
+    }
+  };
+
   // Desktop & Local Blueprint Storage State
   const [desktopInfo, setDesktopInfo] = useState<DesktopAppInfo | null>(null);
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
@@ -696,38 +720,54 @@ export default function SpecForgeStudio() {
   };
 
   const handleExportBlueprintJson = async (item: SavedBlueprint) => {
-    if (window.desktopAPI) {
-      const res = await window.desktopAPI.exportBlueprintFile(item);
-      if (!res.canceled && res.filePath) {
-        setStatusMessage({
-          type: 'success',
-          text: `Exported blueprint JSON to ${res.filePath}`
-        });
+    try {
+      if (window.desktopAPI) {
+        const res = await window.desktopAPI.exportBlueprintFile(item);
+        if (!res.canceled && res.filePath) {
+          setStatusMessageWithTimeout({
+            type: 'success',
+            text: `Exported blueprint JSON to ${res.filePath}`
+          });
+        }
+        return;
       }
-      return;
+      await handleDownloadFile(`${item.id || 'blueprint'}.specforge.json`, JSON.stringify(item, null, 2));
+    } catch (err: any) {
+      console.error('Export blueprint error:', err);
+      setStatusMessage({
+        type: 'error',
+        text: `Export failed: ${err?.message || err}`
+      });
     }
-    handleDownloadFile(`${item.id || 'blueprint'}.specforge.json`, JSON.stringify(item, null, 2));
   };
 
   const handleImportBlueprintJson = async () => {
     if (!window.desktopAPI) return;
-    const res = await window.desktopAPI.importBlueprintFile();
-    if (res.canceled) return;
-    if (res.error || !res.blueprint) {
+    try {
+      const res = await window.desktopAPI.importBlueprintFile();
+      if (res.canceled) return;
+      if (res.error || !res.blueprint) {
+        setStatusMessage({
+          type: 'error',
+          text: res.error || 'Could not import blueprint JSON.'
+        });
+        return;
+      }
+      const saved = await window.desktopAPI.saveBlueprint({
+        id: res.blueprint.id,
+        title: res.blueprint.title,
+        tag: res.blueprint.tag,
+        formState: res.blueprint.formState
+      });
+      await refreshBlueprints();
+      handleLoadFromCloud(saved);
+    } catch (err: any) {
+      console.error('Import blueprint error:', err);
       setStatusMessage({
         type: 'error',
-        text: res.error || 'Could not import blueprint JSON.'
+        text: `Import failed: ${err?.message || err}`
       });
-      return;
     }
-    const saved = await window.desktopAPI.saveBlueprint({
-      id: res.blueprint.id,
-      title: res.blueprint.title,
-      tag: res.blueprint.tag,
-      formState: res.blueprint.formState
-    });
-    await refreshBlueprints();
-    handleLoadFromCloud(saved);
   };
 
   // Helper to update form fields
@@ -750,11 +790,10 @@ export default function SpecForgeStudio() {
       ...prev,
       ...preset
     }));
-    setStatusMessage({
+    setStatusMessageWithTimeout({
       type: 'success',
       text: `Loaded "${preset.label}" preset across all prompt, AGENTS.md, and SDD sections.`
-    });
-    setTimeout(() => setStatusMessage(null), 4000);
+    }, 4000);
   };
 
   // Inject Domain Boundary Invariant Preset into Section 3
@@ -802,11 +841,10 @@ export default function SpecForgeStudio() {
         "1. Enforce the 3 Absolute Laws of Electron Security on BrowserWindow: contextIsolation: true, nodeIntegration: false, and sandbox: true.\n2. Inject strict Content-Security-Policy headers (default-src 'self'; script-src 'self') and validate all IPC payloads with Zod/schema checks in ipcMain.handle() before invoking OS filesystem or shell APIs."
       );
     }
-    setStatusMessage({
+    setStatusMessageWithTimeout({
       type: 'info',
       text: `Injected production ${domainType.toUpperCase()} architectural boundary invariants into Section 3.`
-    });
-    setTimeout(() => setStatusMessage(null), 3500);
+    }, 3500);
   };
 
   // ============================================================================
@@ -1109,11 +1147,10 @@ For each question, provide 3 concrete multiple-choice options where the first op
       runtimeAndSecurityLimits: `${prev.runtimeAndSecurityLimits}\n\nClarified Edge-Case Decisions (/grill-me):\n${summaryLines}`
     }));
 
-    setStatusMessage({
+    setStatusMessageWithTimeout({
       type: 'success',
       text: 'Folded your /grill-me Socratic answers into Section 3 Constraints and spec.md EARS requirements!'
-    });
-    setTimeout(() => setStatusMessage(null), 4000);
+    }, 4000);
   };
 
   // ============================================================================
@@ -1667,7 +1704,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
         document.body.removeChild(textArea);
       }
       setCopiedKey(keyLabel);
-      setTimeout(() => setCopiedKey(null), 2200);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopiedKey(null), 2200);
     } catch (e) {
       console.error('Copy failed', e);
     }
@@ -1675,37 +1713,56 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
   // Save single file via native OS Save Dialog (or browser Blob fallback)
   const handleDownloadFile = async (filename: string, content: string) => {
-    const cleanName = filename.split('/').pop() || 'artifact.md';
-    if (window.desktopAPI) {
-      const res = await window.desktopAPI.saveFileDialog(cleanName, content);
-      if (!res.canceled && res.filePath) {
-        setStatusMessage({
-          type: 'success',
-          text: `Saved ${cleanName} to ${res.filePath}`
-        });
+    try {
+      const cleanName = filename.split('/').pop() || 'artifact.md';
+      if (window.desktopAPI) {
+        const res = await window.desktopAPI.saveFileDialog(cleanName, content);
+        if (!res.canceled && res.filePath) {
+          setStatusMessageWithTimeout({
+            type: 'success',
+            text: `Saved ${cleanName} to ${res.filePath}`
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = cleanName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = cleanName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      console.error('Download file error:', err);
+      setStatusMessage({
+        type: 'error',
+        text: `Download failed: ${err?.message || err}`
+      });
+    }
   };
 
   const handleDownloadAllBundle = async () => {
-    const combined = Object.entries(artifacts)
-      .map(
-        ([path, obj]) =>
-          `================================================================================\nFILE PATH: ${path}\n================================================================================\n\n${obj.content}\n\n`
-      )
-      .join('\n');
-    await handleDownloadFile('specforge-complete-agent-bundle.txt', combined);
+    try {
+      const combined = Object.entries(artifacts)
+        .map(
+          ([path, obj]) =>
+            `================================================================================\nFILE PATH: ${path}\n================================================================================\n\n${obj.content}\n\n`
+        )
+        .join('\n');
+      await handleDownloadFile('specforge-complete-agent-bundle.txt', combined);
+    } catch (err: any) {
+      console.error('Download all error:', err);
+      setStatusMessage({
+        type: 'error',
+        text: `Download all failed: ${err?.message || err}`
+      });
+    }
   };
 
   const handleExportToFolder = async () => {
@@ -2295,7 +2352,11 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
       {/* Optional Status Toast Banner */}
       {statusMessage && (
-        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 pt-3">
+        <div
+          className={`max-w-[1600px] w-full mx-auto px-4 sm:px-6 pt-3 ${
+            cloudModalOpen || settingsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
+          }`}
+        >
           <div
             className={`px-4 py-2.5 rounded-xl border text-xs sm:text-sm flex items-center justify-between gap-3 ${
               statusMessage.type === 'success'
