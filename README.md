@@ -16,12 +16,12 @@ Download the latest binaries from the [GitHub Releases](https://github.com/defiq
 
 1. **Debian / Ubuntu `.deb` Package (Recommended)**:
    ```bash
-   sudo apt install ./release/specforge-studio_1.0.1_amd64.deb
+   sudo apt install ./release/specforge-studio_1.0.2_amd64.deb
    ```
 2. **Portable AppImage**:
    ```bash
-   chmod +x ./release/"SpecForge Studio-1.0.1.AppImage"
-   ./release/"SpecForge Studio-1.0.1.AppImage" --no-sandbox
+   chmod +x ./release/"SpecForge Studio-1.0.2.AppImage"
+   ./release/"SpecForge Studio-1.0.2.AppImage" --no-sandbox
    ```
    *(Note: `--no-sandbox` is required for unprivileged AppImage/unpacked binaries on Ubuntu 24.04 due to `kernel.apparmor_restrict_unprivileged_userns=1`.)*
 3. **Unpacked Binary / Launcher Script**:
