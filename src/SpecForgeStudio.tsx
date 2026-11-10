@@ -1113,7 +1113,7 @@ export default function SpecForgeStudio() {
   });
 
   // AI Loading & Socratic /grill-me Interview State
-  // Track saved or loaded values for unsaved changes detection
+  // Keep track of the initially loaded state for unsaved changes detection
   const [baselineState, setBaselineState] = useState({ projectTitle, form });
 
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
@@ -1203,9 +1203,11 @@ export default function SpecForgeStudio() {
     const newProjectTitle = preset.projectTitle || preset.name;
     const newForm = {
       ...DEFAULT_FORM,
+      ...form,
       ...preset.formState,
       uiStates: {
         ...DEFAULT_FORM.uiStates,
+        ...(form.uiStates || {}),
         ...(preset.formState?.uiStates || {})
       }
     };
@@ -1334,8 +1336,6 @@ export default function SpecForgeStudio() {
         localStorage.setItem(LOCAL_BLUEPRINTS_STORAGE_KEY, JSON.stringify(next));
       }
 
-      // Use the serialized snapshot, so edits made while saving stay unsaved.
-      setBaselineState({ projectTitle: payload.title, form: JSON.parse(payload.formState) });
       await refreshBlueprints();
       setStatusMessage({
         type: 'success',
@@ -1357,13 +1357,7 @@ export default function SpecForgeStudio() {
     try {
       const parsed = JSON.parse(item.formState);
       setForm((prev) => ({ ...prev, ...parsed }));
-      const loadedTitle = item.title || 'Loaded Project';
-      setProjectTitle(loadedTitle);
-      // A partial blueprint leaves retained draft fields and their baseline intact.
-      setBaselineState((prev) => ({
-        projectTitle: loadedTitle,
-        form: { ...prev.form, ...parsed }
-      }));
+      setProjectTitle(item.title || 'Loaded Project');
       if (item.tag) setBlueprintTag(item.tag);
       setCloudModalOpen(false);
       setStatusMessage({

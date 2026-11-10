@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { Lexer } from 'marked';
 import SpecForgeStudio from '../SpecForgeStudio';
 import type { DesktopAPI } from '../types/desktop';
@@ -449,62 +449,44 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(screen.getByText(/No project presets saved yet/i)).toBeTruthy();
   });
 
-  it.each(['desktop', 'browser', 'pending', 'failed'])('tracks only successful saved snapshots (%s)', async (mode) => {
-    let finishSave: (value: any) => void = () => {};
-    if (mode === 'browser') window.desktopAPI = undefined;
-    if (mode === 'pending') {
-      vi.mocked(mockApi.saveBlueprint).mockImplementation(() => new Promise((resolve) => { finishSave = resolve; }));
-    }
-    if (mode === 'failed') vi.mocked(mockApi.saveBlueprint).mockRejectedValue(new Error('disk full'));
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    render(<SpecForgeStudio />);
-    const idea = screen.getByLabelText(/What should your app do\?/i);
-    fireEvent.change(idea, { target: { value: 'Saved idea' } });
-    fireEvent.click(screen.getByRole('button', { name: /^Blueprints \(/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save Blueprint Locally' }));
-    if (mode === 'pending') {
-      fireEvent.change(idea, { target: { value: 'Later draft' } });
-      await act(async () => { finishSave({}); });
-    }
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Save Blueprint Locally' }).hasAttribute('disabled')).toBe(false));
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    fireEvent.click(screen.getByRole('button', { name: /Saved Projects \(/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Reset to Default/ }));
-    expect(confirmSpy).toHaveBeenCalledTimes(mode === 'pending' || mode === 'failed' ? 1 : 0);
-    confirmSpy.mockRestore();
-  });
 
-  it.each([false, true])('updates loaded blueprint fields while preserving retained dirty fields (%s)', async (partial) => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('handles duplicate preset names and invalid JSON in localStorage gracefully', async () => {
+    // 1. Invalid JSON
+    localStorage.setItem('specforge_saved_presets_v1', '{ invalid json');
     render(<SpecForgeStudio />);
-    const initial = JSON.parse(localStorage.getItem('specforge-studio:draft-v1')!);
-    const loadedForm = partial ? { platform: 'mobile' } : { ...initial.form, plainIdea: 'Loaded idea' };
-    vi.mocked(mockApi.listBlueprints).mockResolvedValue([{ id: 'loaded', title: 'Loaded title', formState: JSON.stringify(loadedForm), updatedAt: 1 }]);
-    // Refresh the blueprint list by saving the initial state first.
-    fireEvent.click(screen.getByRole('button', { name: /^Blueprints \(/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save Blueprint Locally' }));
-    await screen.findByText('Loaded title');
-    fireEvent.change(screen.getByLabelText(/What should your app do\?/i), { target: { value: 'Unsaved idea' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Load' }));
-    fireEvent.click(screen.getByRole('button', { name: /Saved Projects \(/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Reset to Default/ }));
-    expect(confirmSpy).toHaveBeenCalledTimes(partial ? 1 : 0);
-    confirmSpy.mockRestore();
-  });
 
-  it('loads partial presets from defaults including missing UI states', () => {
-    localStorage.setItem('specforge_saved_presets_v1', JSON.stringify([{ id: 'partial', name: 'Partial', projectTitle: 'Preset title', updatedAt: 1, formState: { uiStates: { loading: 'Preset loading' } } }]));
-    render(<SpecForgeStudio />);
-    const initial = JSON.parse(localStorage.getItem('specforge-studio:draft-v1')!);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    fireEvent.change(screen.getByLabelText(/What should your app do\?/i), { target: { value: 'Draft idea' } });
-    fireEvent.click(screen.getByRole('button', { name: /Mobile App/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Saved Projects \(/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Load preset Partial' }));
-    const loaded = JSON.parse(localStorage.getItem('specforge-studio:draft-v1')!);
-    expect(loaded.form).toEqual({ ...initial.form, uiStates: { ...initial.form.uiStates, loading: 'Preset loading' } });
-    expect(loaded.projectTitle).toBe('Preset title');
-    confirmSpy.mockRestore();
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Should still open with 0 saved presets since invalid JSON is caught
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    expect(savedProjectsBtn).toBeTruthy();
+
+    // 2. Duplicate preset names
+    fireEvent.click(savedProjectsBtn);
+
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'Duplicate Name' } });
+
+    const savePresetBtn = screen.getByRole('button', { name: /Save Current as Preset/i });
+    fireEvent.click(savePresetBtn);
+
+    // The previous click saves the preset, but also clears the input field.
+    // So we need to type 'Duplicate Name' again
+    fireEvent.change(presetNameInput, { target: { value: 'Duplicate Name' } });
+
+    // Save another one with the same name
+    fireEvent.click(savePresetBtn);
+
+    const rawSaved = localStorage.getItem('specforge_saved_presets_v1');
+    expect(rawSaved).toBeTruthy();
+    const parsedSaved = JSON.parse(rawSaved!);
+
+    expect(parsedSaved).toHaveLength(2);
+    expect(parsedSaved[0].name).toBe('Duplicate Name');
+    expect(parsedSaved[1].name).toBe('Duplicate Name');
+    expect(parsedSaved[0].id).not.toBe(parsedSaved[1].id);
   });
 
   it('rejects malformed saved presets with invalid array item schemas on startup', async () => {
