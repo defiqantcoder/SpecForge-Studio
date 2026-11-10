@@ -4026,9 +4026,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {Object.entries(form.uiStates).map(([stateKey, desc]) => (
+                    {Object.entries({ loading: '', empty: '', error: '', offline: '', disabled: '', success: '', ...form.uiStates }).map(([stateKey, desc]) => (
                       <div
-                        id={stateKey === 'loading' ? 'field-uiStates' : undefined}
                         key={stateKey}
                         className="bg-slate-950 border border-slate-800 rounded-xl p-2.5"
                       >
@@ -4037,6 +4036,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         </span>
                         <input
                           type="text"
+                          id={stateKey === 'loading' ? 'field-uiStates' : undefined}
+                          aria-label={`${stateKey} State`}
                           value={String(desc ?? '')}
                           onChange={(e) => updateUiState(stateKey, e.target.value)}
                           className="w-full bg-transparent text-xs text-slate-200 focus:outline-none"

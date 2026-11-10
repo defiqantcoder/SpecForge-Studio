@@ -340,6 +340,42 @@ describe('SpecForgeStudio Desktop UI', () => {
     });
   });
 
+  it.each([{}, { error: 'Keep imported error handling' }])(
+    'renders and focuses missing UI states after importing %j',
+    async (uiStates) => {
+      vi.mocked(mockApi.importBlueprintFile).mockResolvedValue({
+        canceled: false,
+        blueprint: {
+          id: 'imported', title: 'Imported project', tag: '', updatedAt: 1,
+          formState: JSON.stringify({ uiStates, objective: 'Keep imported objective' })
+        }
+      });
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true, value: vi.fn()
+      });
+      render(<SpecForgeStudio />);
+      fireEvent.click(screen.getByRole('button', { name: /Blueprints \(/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Import .specforge.json/i }));
+      await screen.findByText(/Loaded "Imported project"/);
+      fireEvent.click(within(screen.getByRole('group', { name: /Workspace View Mode/i }))
+        .getByRole('button', { name: 'Pro' }));
+      fireEvent.click(screen.getByText(/Needs Details \(\d+%\)|Good \(\d+%\)|Production-Ready/i, { selector: 'button' }));
+      const row = screen.getByText('Explicit UI states defined').closest('div')!.parentElement!;
+      fireEvent.click(within(row).getByRole('button', { name: 'Fix Now' }));
+      const loading = await screen.findByRole('textbox', { name: 'loading State' });
+      for (const state of ['loading', 'empty', 'error', 'offline', 'disabled', 'success']) {
+        const input = screen.getByRole('textbox', { name: `${state} State` }) as HTMLInputElement;
+        expect(input.value).toBe(uiStates[state] ?? '');
+      }
+      await waitFor(() => expect(document.activeElement).toBe(loading));
+      fireEvent.change(loading, { target: { value: 'Show a spinner' } });
+      expect((loading as HTMLInputElement).value).toBe('Show a spinner');
+      expect((screen.getByRole('textbox', { name: 'error State' }) as HTMLInputElement).value)
+        .toBe(uiStates.error ?? '');
+      expect(document.querySelector('pre')?.textContent).toContain('Keep imported objective');
+    }
+  );
+
   it('renders and interacts with the Prompt Readiness Scorecard', async () => {
     render(<SpecForgeStudio />);
 
