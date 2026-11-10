@@ -340,6 +340,40 @@ describe('SpecForgeStudio Desktop UI', () => {
     });
   });
 
+  it('trims idea text and focuses incomplete fields after navigating from Simple mode', async () => {
+    localStorage.setItem('specforge-studio:draft-v1', JSON.stringify({
+      form: { plainIdea: ' '.repeat(40), targetFilesModify: '', earsSpecs: [], uiStates: { loading: '' } }
+    }));
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<SpecForgeStudio />);
+    const toggle = screen.getByRole('button', { name: /Needs Details|Good|Production-Ready/ });
+    expect(toggle.getAttribute('type')).toBe('button');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toBeTruthy();
+
+    const fix = (label: string) => fireEvent.click(within(screen.getByText(label).parentElement!.parentElement!).getByRole('button', { name: 'Fix Now' }));
+    fix('Clear plain-English idea');
+    await waitFor(() => expect(document.activeElement?.id).toBe('field-plainIdea'));
+    fix('Target files specified');
+    await waitFor(() => expect(document.activeElement?.id).toBe('field-targetFilesModify'));
+    expect(screen.getByRole('button', { name: /Custom AI Prompt/ })).toBeTruthy();
+    fix('Explicit UI states defined');
+    await waitFor(() => expect(document.activeElement?.id).toBe('field-uiStates'));
+    expect(document.activeElement?.tagName).toBe('INPUT');
+    fix('Testable acceptance criteria (>=2)');
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Add Goal Check/ })));
+    fireEvent.click(screen.getByRole('button', { name: /Add Goal Check/ }));
+    fix('Testable acceptance criteria (>=2)');
+    await waitFor(() => expect(document.activeElement?.id).toBe('field-earsSpecs'));
+    expect(document.activeElement?.tagName).toBe('INPUT');
+    expect(scrollIntoView).toHaveBeenCalled();
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
   it('renders and interacts with the Prompt Readiness Scorecard', async () => {
     render(<SpecForgeStudio />);
 
