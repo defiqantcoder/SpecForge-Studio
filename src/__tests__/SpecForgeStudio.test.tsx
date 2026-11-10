@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { Lexer } from 'marked';
 import SpecForgeStudio from '../SpecForgeStudio';
 import type { DesktopAPI } from '../types/desktop';
 
@@ -24,8 +25,8 @@ function createMockDesktopAPI(): DesktopAPI {
     exportWorkspaceDialog: vi.fn().mockResolvedValue({
       canceled: false,
       targetDir: '/home/test/my-repo',
-      writtenCount: 14,
-      writtenFiles: ['AGENTS.md', 'TASK_PROMPT.md']
+      writtenCount: 15,
+      writtenFiles: ['AGENTS.md', 'TASK_PROMPT.md', 'FULL_BLUEPRINT_REPORT.md']
     }),
     listBlueprints: vi.fn().mockResolvedValue([]),
     saveBlueprint: vi.fn().mockImplementation(async (bp) => ({
@@ -69,7 +70,7 @@ describe('SpecForgeStudio Desktop UI', () => {
     });
   });
 
-  it('exports all 14 generated files in Simple Mode via desktopAPI.exportWorkspaceDialog', async () => {
+  it('exports all 15 generated files in Simple Mode via desktopAPI.exportWorkspaceDialog', async () => {
     render(<SpecForgeStudio />);
     const exportBtn = screen.getByRole('button', { name: /Export to Repo/i });
     fireEvent.click(exportBtn);
@@ -78,7 +79,12 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
     });
     const callArg = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArg.files).toHaveLength(14);
+    expect(callArg.files).toHaveLength(15);
+    expect(
+      callArg.files.some(
+        (f: { relativePath: string }) => f.relativePath === 'FULL_BLUEPRINT_REPORT.md'
+      )
+    ).toBe(true);
     expect(callArg.files.some((f: { relativePath: string }) => f.relativePath === 'AGENTS.md')).toBe(
       true
     );
@@ -201,13 +207,13 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(screen.getByText(/Plain-English Guide: EARS Notation/i)).toBeTruthy();
     expect(screen.getByText(/Plain-English Guide: Vertical Slices/i)).toBeTruthy();
 
-    // Export to Repo still exports all 14 generated files
+    // Export to Repo still exports all 15 generated files
     fireEvent.click(screen.getByRole('button', { name: /Export to Repo/i }));
     await waitFor(() => {
       expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
     });
     const payload = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(payload.files).toHaveLength(14);
+    expect(payload.files).toHaveLength(15);
   });
 
   it('translates Intermediate Mode plain-English rule checkboxes and simplified task slicer into technical artifacts', async () => {
@@ -378,6 +384,178 @@ describe('SpecForgeStudio Desktop UI', () => {
 
     await waitFor(() => {
       expect(mockApi.setGeminiApiKey).toHaveBeenCalledWith('AIzaTestKey1234');
+    });
+  });
+
+  it('saves, loads, resets, and deletes project presets via localStorage (specforge_saved_presets_v1)', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Change plainIdea to a custom value
+    const ideaTextarea = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Custom Fintech Ledger Idea for Preset Test' }
+    });
+    expect(ideaTextarea.value).toBe('Custom Fintech Ledger Idea for Preset Test');
+
+    // Open Saved Projects modal
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    fireEvent.click(savedProjectsBtn);
+
+    expect(screen.getByText('Saved Project Presets')).toBeTruthy();
+
+    // Save Current as Preset
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'Fintech Preset Alpha' } });
+
+    const savePresetBtn = screen.getByRole('button', { name: /Save Current as Preset/i });
+    fireEvent.click(savePresetBtn);
+
+    // Verify localStorage updated
+    const rawSaved = localStorage.getItem('specforge_saved_presets_v1');
+    expect(rawSaved).toBeTruthy();
+    const parsedSaved = JSON.parse(rawSaved!);
+    expect(parsedSaved).toHaveLength(1);
+    expect(parsedSaved[0].name).toBe('Fintech Preset Alpha');
+    expect(parsedSaved[0].formState.plainIdea).toBe('Custom Fintech Ledger Idea for Preset Test');
+
+    // Reset to Default
+    const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
+    fireEvent.click(resetBtn);
+
+    // Verify plainIdea was reset to the default value
+    expect(ideaTextarea.value).not.toBe('Custom Fintech Ledger Idea for Preset Test');
+    expect(ideaTextarea.value).toContain('team invoice approval workflow');
+
+    // Re-open Saved Projects modal and Load the saved preset
+    fireEvent.click(screen.getByRole('button', { name: /📂 Saved Projects \(1\)/i }));
+    const loadPresetBtn = screen.getByRole('button', { name: /Load preset Fintech Preset Alpha/i });
+    fireEvent.click(loadPresetBtn);
+
+    // Verify custom plainIdea is restored
+    expect(ideaTextarea.value).toBe('Custom Fintech Ledger Idea for Preset Test');
+
+    // Re-open Saved Projects modal and Delete the preset
+    fireEvent.click(screen.getByRole('button', { name: /📂 Saved Projects \(1\)/i }));
+    const deletePresetBtn = screen.getByRole('button', {
+      name: /Delete preset Fintech Preset Alpha/i
+    });
+    fireEvent.click(deletePresetBtn);
+
+    expect(JSON.parse(localStorage.getItem('specforge_saved_presets_v1')!)).toHaveLength(0);
+    expect(screen.getByText(/No project presets saved yet/i)).toBeTruthy();
+  });
+
+  it('rejects malformed saved presets with invalid array item schemas on startup', async () => {
+    localStorage.setItem(
+      'specforge_saved_presets_v1',
+      JSON.stringify([
+        {
+          id: 'bad-preset-1',
+          name: 'Corrupted EARS Preset',
+          projectTitle: 'Corrupted',
+          updatedAt: Date.now(),
+          formState: {
+            earsSpecs: ['not-an-object-item']
+          }
+        }
+      ])
+    );
+
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i })).toBeTruthy();
+  });
+
+  it('generates, copies, and exports a valid Markdown Shareable Spec Report (FULL_BLUEPRINT_REPORT.md)', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const copyReportBtn = screen.getByRole('button', { name: /📋 Copy Full Spec Report/i });
+    const exportReportBtn = screen.getByRole('button', {
+      name: /📄 Export Shareable Spec Report \(\.md\)/i
+    });
+    expect(copyReportBtn).toBeTruthy();
+    expect(exportReportBtn).toBeTruthy();
+
+    fireEvent.click(copyReportBtn);
+
+    await waitFor(() => {
+      expect(mockApi.copyToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    const copiedMarkdown = (mockApi.copyToClipboard as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(typeof copiedMarkdown).toBe('string');
+    expect(copiedMarkdown).toContain('Full Architectural & SDD Specification Report');
+    expect(copiedMarkdown).toContain('## 📋 1. Project Overview & Target Stack');
+    expect(copiedMarkdown).toContain('## 🎯 2. 5-Section Task Prompt (`TASK_PROMPT.md`)');
+    expect(copiedMarkdown).toContain('## 🤖 3. Repository Agent Contract (`AGENTS.md`)');
+    expect(copiedMarkdown).toContain(
+      '## ⚖️ 4. Project Constitution (`.specify/memory/constitution.md`)'
+    );
+    expect(copiedMarkdown).toContain(
+      '## 📐 5. EARS Feature Specification (`specs/001-feature/spec.md`)'
+    );
+    expect(copiedMarkdown).toContain(
+      '## 🧩 6. Vertical-Slice Task Breakdown (`specs/001-feature/tasks.md`)'
+    );
+
+    const tokens = Lexer.lex(copiedMarkdown);
+    expect(tokens.length).toBeGreaterThan(10);
+    const headings = tokens.filter((t) => t.type === 'heading');
+    expect(headings.length).toBeGreaterThanOrEqual(7);
+
+    fireEvent.click(exportReportBtn);
+
+    await waitFor(() => {
+      expect(mockApi.saveFileDialog).toHaveBeenCalledWith(
+        'FULL_BLUEPRINT_REPORT.md',
+        copiedMarkdown
+      );
+    });
+  });
+
+  it('evaluates Prompt Readiness Scorecard live and navigates/focuses missing fields on Fix Now', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Initially all 6 checks pass with the default preset
+    expect(screen.getByText('Prompt Readiness Scorecard')).toBeTruthy();
+    expect(screen.getByText('6/6 Ready')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fix Now' })).toBeNull();
+
+    // Clear the plain-language idea in Simple Mode so the first check fails
+    const plainIdeaInput = document.getElementById('plain-idea-input') as HTMLTextAreaElement;
+    expect(plainIdeaInput).toBeTruthy();
+    fireEvent.change(plainIdeaInput, { target: { value: 'Too short' } });
+
+    expect(screen.getByText('5/6 Ready')).toBeTruthy();
+    const fixButtons = screen.getAllByRole('button', { name: 'Fix Now' });
+    expect(fixButtons).toHaveLength(1);
+
+    // Switch to another tab first, then click Fix Now to verify it switches back to ideation and focuses the field
+    fireEvent.click(screen.getByRole('button', { name: /2\. How to Use Your Files/i }));
+    expect(document.getElementById('plain-idea-input')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fix Now' }));
+
+    await waitFor(() => {
+      const focusedEl = document.getElementById('plain-idea-input');
+      expect(focusedEl).toBeTruthy();
+      expect(document.activeElement).toBe(focusedEl);
     });
   });
 });

@@ -17,9 +17,7 @@ To set up the project locally on your Ubuntu 24.04 environment, please follow th
     ```bash
     npm install
     ```
-<!-- coderabbit-ai-generated:v1 -->
 
-<!-- coderabbit-ai-generated-section:v1:d98bf9d0bc6c0fb94874eab6caf6440d6bdcd4e7bc75f501b7e0bedeca434b3c -->
 
 3.  **Choose one development workflow:**
 
@@ -34,7 +32,6 @@ To set up the project locally on your Ubuntu 24.04 environment, please follow th
     ```
     `npm run electron:dev` starts its own Vite server with Hot Module Replacement (HMR) and launches Electron. Do not run both workflows together.
 
-<!-- /coderabbit-ai-generated:v1 -->
 
 ### Other Helpful Commands
 

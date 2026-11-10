@@ -47,7 +47,7 @@ describe('Artifact Integrity Test', () => {
     localStorage.clear();
   });
 
-  it('validates structural integrity of all 14 generated output files in Pro mode', async () => {
+  it('validates structural integrity of all 15 generated output files in Pro mode', async () => {
     render(<SpecForgeStudio />);
 
     await waitFor(() => {
@@ -67,8 +67,27 @@ describe('Artifact Integrity Test', () => {
     const payload = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
     const files = payload.files;
 
-    // 1. Verify 14 files
-    expect(files).toHaveLength(14);
+    // 1. Verify all 15 expected files and their exact relative paths
+    expect(files).toHaveLength(15);
+    expect(files.map((f: any) => f.relativePath)).toEqual(
+      expect.arrayContaining([
+        'FULL_BLUEPRINT_REPORT.md',
+        'bootstrap-agy.sh',
+        'TASK_PROMPT.md',
+        'AGENTS.md',
+        'apps/mobile/AGENTS.md',
+        '.agents/rules/architecture-boundaries.md',
+        '.agents/skills/verify-vertical-slice/SKILL.md',
+        '.github/copilot-instructions.md',
+        '.github/instructions/domain-boundaries.instructions.md',
+        '.github/agents/implementation-planner.agent.md',
+        '.github/workflows/copilot-setup-steps.yml',
+        'jules-setup.sh',
+        '.specify/memory/constitution.md',
+        'specs/001-feature/spec.md',
+        'specs/001-feature/tasks.md'
+      ])
+    );
 
     // Verify non-empty content
     for (const file of files) {
@@ -87,11 +106,16 @@ describe('Artifact Integrity Test', () => {
     expect(openingEOF).toBeGreaterThan(0);
     expect(openingEOF).toEqual(closingEOF);
 
-    // 3. Verify AGENTS.md size limit
+    // 3. Verify Antigravity rule & AGENTS.md size limits (< 24,000 bytes)
+    const agyRuleFile = files.find((f: any) =>
+      f.relativePath.startsWith('.agents/rules/') && f.relativePath.endsWith('.md')
+    );
+    expect(agyRuleFile).toBeDefined();
+    const agyRuleBytes = new Blob([agyRuleFile.content]).size;
+    expect(agyRuleBytes).toBeLessThan(24000);
+
     const agentsMd = files.find((f: any) => f.relativePath === 'AGENTS.md');
     expect(agentsMd).toBeDefined();
-
-    // Antigravity limit is 24000 bytes
     const agentsMdBytes = new Blob([agentsMd.content]).size;
     expect(agentsMdBytes).toBeLessThan(24000);
   });

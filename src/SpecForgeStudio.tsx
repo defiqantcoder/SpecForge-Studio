@@ -43,12 +43,15 @@ import {
   FolderUp,
   KeyRound,
   Upload,
-  HardDrive
+  HardDrive,
+  Folder,
+  Bookmark
 } from 'lucide-react';
 import type { DesktopAppInfo, GeminiSettingsInfo, SavedBlueprint } from './types/desktop';
 
 const LOCAL_DRAFT_STORAGE_KEY = 'specforge-studio:draft-v1';
 const LOCAL_BLUEPRINTS_STORAGE_KEY = 'specforge-studio:blueprints-v1';
+const LOCAL_PRESETS_STORAGE_KEY = 'specforge_saved_presets_v1';
 
 // ============================================================================
 // DUMMY-PROOF HELPER CHIPS & FILE PLACEMENT INSTRUCTIONS
@@ -80,6 +83,11 @@ const QUICK_FILL_CHIPS = {
 };
 
 const FILE_USAGE_GUIDE = {
+  'FULL_BLUEPRINT_REPORT.md': {
+    whatIsIt: 'A complete, single-file master blueprint combining your project overview, task prompt, AGENTS.md, constitution, EARS spec, and vertical slices.',
+    whereItGoes: 'Paste directly into a GitHub Issue, Pull Request description, Notion doc, or share with teammates for architectural review.',
+    BeginnerTip: 'Use this when you want to share your entire AI specification in one clean, readable document!'
+  },
   'TASK_PROMPT.md': {
     whatIsIt: 'Your main 5-Section Task Prompt with high-priority instructions at the top and bottom.',
     whereItGoes: 'Copy and paste this directly into the chat box of Google Antigravity, GitHub Copilot Chat, or a Google Jules task / GitHub Issue.',
@@ -834,6 +842,82 @@ function JargonTranslationCard({
   );
 }
 
+const DEFAULT_FORM = {
+  ...PRESETS.web_nextjs,
+  // Platform-specific extra config fields
+  pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
+  desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
+  // Antigravity Rule Config
+  agyRuleName: 'architecture-boundaries',
+  agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
+  agyGlobs: '*.tsx, src/features/**/*.ts',
+  agyRuleDescription:
+    'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
+  // Antigravity Skill Config
+  agySkillName: 'verify-vertical-slice',
+  agySkillDescription:
+    'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
+  // Copilot Path-Specific Instruction Config
+  copilotInstructionName: 'domain-boundaries',
+  copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
+  copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
+  // Copilot Custom Agent Config
+  copilotAgentName: 'implementation-planner',
+  copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
+  // Monorepo Nested AGENTS.md Config
+  enableNestedAgents: true,
+  nestedSubprojectPath: 'apps/mobile',
+  nestedCommandOverrides:
+    'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
+  nestedLocalConstraints:
+    'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
+};
+
+/**
+ * Recursively validates that `value` structurally matches `defaults`.
+ * When `requireAllFields` is true (used for array item schemas like `earsSpecs`),
+ * every key in `defaults` must be present and match its type.
+ */
+function matchesDefaults(value: any, defaults: any, requireAllFields = false): boolean {
+  if (typeof defaults !== 'object' || defaults === null) {
+    return typeof value === typeof defaults;
+  }
+  if (typeof value !== 'object' || value === null) return false;
+  if (Array.isArray(defaults)) {
+    if (!Array.isArray(value)) return false;
+    if (defaults.length === 0) return true;
+    return value.every((item) => matchesDefaults(item, defaults[0], true));
+  }
+  if (Array.isArray(value)) return false;
+
+  for (const key of Object.keys(defaults)) {
+    if (requireAllFields && !(key in value)) {
+      return false;
+    }
+    if (key in value && value[key] !== undefined) {
+      if (!matchesDefaults(value[key], defaults[key], requireAllFields)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Runtime type guard for saved project presets stored in `localStorage`.
+ */
+function isValidSavedPreset(
+  item: any
+): item is { id: string; name: string; projectTitle: string; formState: any; updatedAt: number } {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof item.id === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.projectTitle === 'string' &&
+    typeof item.updatedAt === 'number' &&
+    matchesDefaults(item.formState, DEFAULT_FORM)
+  );
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
@@ -864,6 +948,13 @@ export default function SpecForgeStudio() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // Status banner message
   const [statusMessage, setStatusMessage] = useState<{ type: string; text: string } | null>(null);
+  // Collapsible Prompt Readiness Scorecard state
+  const [showScorecard, setShowScorecard] = useState(true);
+  const [pendingScorecardFocus, setPendingScorecardFocus] = useState<{
+    focusId: string;
+    token: number;
+  } | null>(null);
+  const scorecardFocusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Timeout refs to clean up on unmount or re-trigger
   const statusTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -874,8 +965,28 @@ export default function SpecForgeStudio() {
     return () => {
       if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      if (scorecardFocusTimerRef.current) clearTimeout(scorecardFocusTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!pendingScorecardFocus) return;
+    const { focusId } = pendingScorecardFocus;
+    const el = document.getElementById(focusId);
+    if (!el) return;
+
+    el.focus();
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    el.classList.add('ring-2', 'ring-indigo-500', 'transition-shadow', 'duration-500');
+
+    if (scorecardFocusTimerRef.current) clearTimeout(scorecardFocusTimerRef.current);
+    scorecardFocusTimerRef.current = setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-indigo-500', 'transition-shadow', 'duration-500');
+    }, 2000);
+    setPendingScorecardFocus(null);
+  }, [pendingScorecardFocus, activeTab, viewMode, mobilePane]);
 
   /** Sets statusMessage and clears only if it is still the active message when the timer expires. */
   const setStatusMessageWithTimeout = (msg: { type: string; text: string } | null, duration: number = 4000) => {
@@ -893,6 +1004,65 @@ export default function SpecForgeStudio() {
   const [desktopInfo, setDesktopInfo] = useState<DesktopAppInfo | null>(null);
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [presetsModalOpen, setPresetsModalOpen] = useState(false);
+  const [savedPresets, setSavedPresets] = useState<
+    Array<{ id: string; name: string; projectTitle: string; formState: any; updatedAt: number }>
+  >([]);
+  const [presetNameInput, setPresetNameInput] = useState('');
+  const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!presetsModalOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = presetsDialogRef.current;
+
+    if (dialog) {
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        dialog.focus();
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setPresetsModalOpen(false);
+      } else if (e.key === 'Tab' && dialog) {
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialog) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+    };
+  }, [presetsModalOpen]);
+
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
     source: 'none'
@@ -920,47 +1090,16 @@ export default function SpecForgeStudio() {
 
   // Core Form State initialized from saved draft or Web Next.js 15 preset
   const [form, setForm] = useState<any>(() => {
-    const defaultForm = {
-      ...PRESETS.web_nextjs,
-      // Platform-specific extra config fields
-      pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
-      desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
-      // Antigravity Rule Config
-      agyRuleName: 'architecture-boundaries',
-      agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
-      agyGlobs: '*.tsx, src/features/**/*.ts',
-      agyRuleDescription:
-        'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
-      // Antigravity Skill Config
-      agySkillName: 'verify-vertical-slice',
-      agySkillDescription:
-        'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
-      // Copilot Path-Specific Instruction Config
-      copilotInstructionName: 'domain-boundaries',
-      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
-      copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
-      // Copilot Custom Agent Config
-      copilotAgentName: 'implementation-planner',
-      copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
-      // Monorepo Nested AGENTS.md Config
-      enableNestedAgents: true,
-      nestedSubprojectPath: 'apps/mobile',
-      nestedCommandOverrides:
-        'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
-      nestedLocalConstraints:
-        'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
-    };
-
     try {
       const savedDraft = localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
         if (parsed?.form) {
           return {
-            ...defaultForm,
+            ...DEFAULT_FORM,
             ...parsed.form,
             uiStates: {
-              ...defaultForm.uiStates,
+              ...DEFAULT_FORM.uiStates,
               ...(parsed.form.uiStates || {})
             }
           };
@@ -970,7 +1109,7 @@ export default function SpecForgeStudio() {
       // ignore malformed draft
     }
 
-    return defaultForm;
+    return DEFAULT_FORM;
   });
 
   // AI Loading & Socratic /grill-me Interview State
@@ -1016,8 +1155,107 @@ export default function SpecForgeStudio() {
     }
   };
 
+  // ============================================================================
+  // SAVED PROJECT PRESETS (LOCAL STORAGE)
+  // ============================================================================
+  const handleSavePreset = () => {
+    const trimmed = presetNameInput.trim() || projectTitle.trim() || 'Untitled Preset';
+    const newPreset = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: trimmed,
+      projectTitle,
+      formState: form,
+      updatedAt: Date.now()
+    };
+    const next = [newPreset, ...savedPresets];
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+      setSavedPresets(next);
+      setPresetNameInput('');
+      setStatusMessageWithTimeout({
+        type: 'success',
+        text: `Saved preset "${trimmed}" to local storage.`
+      });
+    } catch (err: any) {
+      setStatusMessageWithTimeout({
+        type: 'error',
+        text: `Failed to save preset: ${err?.message || err}`
+      });
+    }
+  };
+
+  const handleLoadPreset = (preset: {
+    id: string;
+    name: string;
+    projectTitle: string;
+    formState: any;
+    updatedAt: number;
+  }) => {
+    setProjectTitle(preset.projectTitle || preset.name);
+    setForm((prev: any) => ({
+      ...DEFAULT_FORM,
+      ...prev,
+      ...preset.formState,
+      uiStates: {
+        ...DEFAULT_FORM.uiStates,
+        ...(prev.uiStates || {}),
+        ...(preset.formState?.uiStates || {})
+      }
+    }));
+    setPresetsModalOpen(false);
+    setStatusMessageWithTimeout({
+      type: 'success',
+      text: `Loaded preset "${preset.name}"!`
+    });
+  };
+
+  const handleDeletePreset = (id: string, name: string) => {
+    const next = savedPresets.filter((p) => p.id !== id);
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+      setSavedPresets(next);
+      setStatusMessageWithTimeout({
+        type: 'info',
+        text: `Deleted preset "${name}".`
+      });
+    } catch (err: any) {
+      setStatusMessageWithTimeout({
+        type: 'error',
+        text: `Failed to delete preset: ${err?.message || err}`
+      });
+    }
+  };
+
+  const handleResetToDefaultPreset = () => {
+    setProjectTitle('My Invoice Approval App');
+    setForm({
+      ...DEFAULT_FORM,
+      uiStates: {
+        ...DEFAULT_FORM.uiStates
+      },
+      earsSpecs: [...DEFAULT_FORM.earsSpecs],
+      verticalSlices: [...DEFAULT_FORM.verticalSlices]
+    });
+    setPresetsModalOpen(false);
+    setStatusMessageWithTimeout({
+      type: 'info',
+      text: 'Reset workspace to default blueprint.'
+    });
+  };
+
   useEffect(() => {
     void refreshBlueprints();
+    try {
+      const rawPresets = localStorage.getItem(LOCAL_PRESETS_STORAGE_KEY);
+      if (rawPresets) {
+        const parsed = JSON.parse(rawPresets);
+        if (Array.isArray(parsed)) {
+          setSavedPresets(parsed.filter(isValidSavedPreset));
+        }
+      }
+    } catch {
+      // ignore malformed presets
+    }
     if (window.desktopAPI) {
       window.desktopAPI.getAppInfo().then(setDesktopInfo).catch(console.error);
       window.desktopAPI.getGeminiSettings().then(setGeminiSettings).catch(console.error);
@@ -1688,8 +1926,8 @@ For each question, provide 3 concrete multiple-choice options where the first op
   // ============================================================================
   // GENERATED ARTIFACTS COMPILER (Real-time synthesis of all files)
   // ============================================================================
-  const formatPointer = (str) => {
-    if (!str) return '';
+  const formatPointer = (str: unknown) => {
+    if (typeof str !== 'string' || !str) return '';
     if (form.pointerStyle === '#file') {
       return str.replace(/@([^\s,;]+)/g, '#file:$1');
     }
@@ -2088,7 +2326,73 @@ echo "👉 Next step in Antigravity chat or agy CLI, run:"
 echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 `;
 
+    // 15. Shareable Full Blueprint Report (Master Markdown Document)
+    const fullBlueprintReportMd = `# ${projectTitle || 'SpecForge Studio Blueprint'} — Full Architectural & SDD Specification Report
+> Generated by **SpecForge Studio** (2026 Multi-Platform Prompt & SDD Workbench)
+
+---
+
+## 📋 1. Project Overview & Target Stack
+- **Project Title**: ${projectTitle || 'Untitled Blueprint'}
+- **Target Surface**: \`${form.surface}\`
+- **Target AI Agent**: \`${form.agent}\`
+- **Role Persona**: ${form.rolePersona} (${form.roleFocus})
+- **Pinned Stack**: ${form.pinnedStack}
+- **Disallowed Libraries**: ${form.unapprovedLibs}
+
+### Plain-Language Idea & User Intent
+${form.plainIdea}
+
+### Target User Persona
+${form.userPersona}
+
+---
+
+## 🎯 2. 5-Section Task Prompt (\`TASK_PROMPT.md\`)
+
+\`\`\`markdown
+${taskPromptMd}
+\`\`\`
+
+---
+
+## 🤖 3. Repository Agent Contract (\`AGENTS.md\`)
+
+\`\`\`markdown
+${agentsMd}
+\`\`\`
+
+---
+
+## ⚖️ 4. Project Constitution (\`.specify/memory/constitution.md\`)
+
+\`\`\`markdown
+${constitutionMd}
+\`\`\`
+
+---
+
+## 📐 5. EARS Feature Specification (\`specs/001-feature/spec.md\`)
+
+### Observable Acceptance Criteria (EARS Notation)
+${earsFormatted}
+
+### Required User Experience States
+${uiStatesFormatted}
+
+---
+
+## 🧩 6. Vertical-Slice Task Breakdown (\`specs/001-feature/tasks.md\`)
+
+${slicesFormatted}
+`;
+
     return {
+      'FULL_BLUEPRINT_REPORT.md': {
+        title: 'FULL_BLUEPRINT_REPORT.md (Master Shareable Spec Report)',
+        badge: 'Master Spec Report',
+        content: fullBlueprintReportMd
+      },
       'bootstrap-agy.sh': {
         title: 'bootstrap-agy.sh (1-Click Antigravity Setup)',
         badge: '1-Click Setup',
@@ -2160,7 +2464,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
         content: tasksMd
       }
     };
-  }, [form]);
+  }, [form, projectTitle]);
 
   const isDockFiltered = !isProMode && !showAllSimpleFiles;
   const simpleAllowedKeys = SIMPLE_ESSENTIAL_FILES.map((item) => item.key);
@@ -2191,7 +2495,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
   // Ensure selectedArtifact key exists when dynamic paths or filtered dock modes change
   const currentArtifactKey =
     artifacts[selectedArtifact] &&
-    (!isDockFiltered || allowedDockKeys.includes(selectedArtifact))
+    (!isDockFiltered ||
+      allowedDockKeys.includes(selectedArtifact) ||
+      (isSimpleMode && selectedArtifact === 'FULL_BLUEPRINT_REPORT.md'))
       ? selectedArtifact
       : 'TASK_PROMPT.md';
   const currentArtifact = artifacts[currentArtifactKey];
@@ -2250,6 +2556,85 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       hasRecencyAnchor: Boolean(form.verificationCommands && form.deliverableFormat)
     };
   }, [artifacts, form]);
+
+  const uiStateEntries = useMemo(
+    () => Object.entries((form.uiStates || {}) as Record<string, string>),
+    [form.uiStates]
+  );
+
+  const firstIncompleteUiState = useMemo(
+    () =>
+      uiStateEntries.find(([, v]) => typeof v !== 'string' || v.trim().length <= 5)?.[0] ??
+      uiStateEntries[0]?.[0],
+    [uiStateEntries]
+  );
+
+  // Prompt Readiness Scorecard evaluation (6 checks)
+  const scorecardItems = useMemo(() => {
+    const trimmedText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+    const requiredUiStateKeys = ['loading', 'empty', 'error', 'offline', 'disabled', 'success'];
+    const uiStates =
+      form.uiStates && typeof form.uiStates === 'object' ? form.uiStates : {};
+
+    return [
+      {
+        id: 'plainIdea',
+        label: 'Plain-language idea defined (> 20 chars)',
+        passed: trimmedText(form.plainIdea).length > 20,
+        tab: 'ideation',
+        focusId: 'plain-idea-input'
+      },
+      {
+        id: 'pinnedStack',
+        label: 'Pinned stack & disallowed libraries specified',
+        passed:
+          trimmedText(form.pinnedStack).length > 5 &&
+          trimmedText(form.unapprovedLibs).length > 5,
+        tab: 'prompt5',
+        focusId: 'field-pinnedStack'
+      },
+      {
+        id: 'targetFiles',
+        label: 'Target files to modify specified (@path or #file)',
+        passed:
+          trimmedText(form.targetFilesModify).length > 2 &&
+          (form.targetFilesModify.includes('@') ||
+            form.targetFilesModify.includes('#file') ||
+            form.targetFilesModify.includes('/')),
+        tab: 'prompt5',
+        focusId: 'field-targetFilesModify'
+      },
+      {
+        id: 'uiStates',
+        label: 'All 6 UI state transitions defined (Loading, Empty, Error, Offline, Disabled, Success)',
+        passed: requiredUiStateKeys.every((key) => trimmedText(uiStates[key]).length > 5),
+        tab: 'prompt5',
+        focusId: 'field-uiStates'
+      },
+      {
+        id: 'verificationCommands',
+        label: 'Exact verification shell commands provided',
+        passed: trimmedText(form.verificationCommands).length > 5,
+        tab: 'prompt5',
+        focusId: 'field-verificationCommands'
+      },
+      {
+        id: 'earsCriteria',
+        label: 'At least 2 EARS WHEN / THE SYSTEM SHALL acceptance criteria defined',
+        passed:
+          Array.isArray(form.earsSpecs) &&
+          form.earsSpecs.filter(
+            (e: any) =>
+              e &&
+              typeof e === 'object' &&
+              trimmedText(e.when).length > 3 &&
+              trimmedText(e.shall).length > 3
+          ).length >= 2,
+        tab: 'sdd',
+        focusId: 'field-earsSpecs'
+      }
+    ];
+  }, [form]);
 
   // Native OS clipboard copy (with browser fallback)
   const handleCopy = async (text: string, keyLabel: string) => {
@@ -2540,6 +2925,16 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 );
               })}
             </div>
+
+            {/* Saved Projects Presets Drawer/Modal Button */}
+            <button
+              onClick={() => setPresetsModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 flex items-center gap-1.5 transition"
+              title="Save, load, or delete local project presets"
+            >
+              <Folder className="w-3.5 h-3.5 text-amber-400" />
+              <span>📂 Saved Projects ({savedPresets.length})</span>
+            </button>
 
             {/* Local Blueprints Manager Button */}
             <button
@@ -3027,11 +3422,132 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
         </div>
       )}
 
+      {/* ====================================================================
+          SAVED PROJECT PRESETS MODAL (LOCAL STORAGE)
+         ==================================================================== */}
+      {presetsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPresetsModalOpen(false);
+          }}
+        >
+          <div
+            ref={presetsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="presets-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Folder className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h2 id="presets-dialog-title" className="text-base font-bold text-white">
+                    Saved Project Presets
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Save and switch between multiple named project configurations locally.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPresetsModalOpen(false)}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Save Current as Preset */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Bookmark className="w-3.5 h-3.5" />
+                Save Current as Preset
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={presetNameInput}
+                  onChange={(e) => setPresetNameInput(e.target.value)}
+                  placeholder={projectTitle || 'Preset name (e.g., E-Commerce Blueprint)'}
+                  aria-label="Preset Name"
+                  className="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  onClick={handleSavePreset}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow transition shrink-0"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Save Current as Preset
+                </button>
+              </div>
+            </div>
+
+            {/* Saved Presets List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                  Saved Presets ({savedPresets.length})
+                </h4>
+                <button
+                  onClick={handleResetToDefaultPreset}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition"
+                >
+                  Reset to Default
+                </button>
+              </div>
+
+              {savedPresets.length === 0 ? (
+                <p className="text-xs text-slate-500 bg-slate-950/60 p-4 rounded-xl border border-slate-800 text-center">
+                  No project presets saved yet. Enter a name above and click &quot;Save Current as Preset&quot;.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {savedPresets.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">{item.name}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : 'Saved'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleLoadPreset(item)}
+                          aria-label={`Load preset ${item.name}`}
+                          className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-medium hover:bg-amber-500/30 border border-amber-500/30"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeletePreset(item.id, item.name)}
+                          aria-label={`Delete preset ${item.name}`}
+                          className="p-1.5 rounded bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border border-rose-500/30"
+                          title={`Delete preset ${item.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Optional Status Toast Banner */}
       {statusMessage && (
         <div
           className={`max-w-[1600px] w-full mx-auto px-4 sm:px-6 pt-3 ${
-            cloudModalOpen || settingsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
+            cloudModalOpen || settingsModalOpen || presetsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
           }`}
         >
           <div
@@ -4065,12 +4581,16 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
+                      <label
+                        htmlFor="field-targetFilesModify"
+                        className="block text-xs font-medium text-slate-300"
+                      >
                         Target Files to Modify
                       </label>
                       <InfoTooltip text="Exact file paths the AI is allowed to create or edit for this task." />
                     </div>
                     <input
+                      id="field-targetFilesModify"
                       type="text"
                       value={form.targetFilesModify}
                       onChange={(e) => updateField('targetFilesModify', e.target.value)}
@@ -4094,12 +4614,16 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center gap-1.5 mb-1">
-                        <label className="block text-xs font-medium text-slate-300">
+                        <label
+                          htmlFor="field-pinnedStack"
+                          className="block text-xs font-medium text-slate-300"
+                        >
                           Pinned Stack &amp; Exact SDK Versions
                         </label>
                         <InfoTooltip text="Locks in framework and library versions so the AI doesn't use outdated syntax." />
                       </div>
                       <textarea
+                        id="field-pinnedStack"
                         rows={2}
                         value={form.pinnedStack}
                         onChange={(e) => updateField('pinnedStack', e.target.value)}
@@ -4389,7 +4913,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     <InfoTooltip text="Ensures the AI designs every screen state instead of only coding the happy path." />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {Object.entries(form.uiStates).map(([stateKey, desc]) => (
+                    {uiStateEntries.map(([stateKey, desc]) => (
                       <div
                         key={stateKey}
                         className="bg-slate-950 border border-slate-800 rounded-xl p-2.5"
@@ -4398,6 +4922,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                           {stateKey} State
                         </span>
                         <input
+                          id={stateKey === firstIncompleteUiState ? 'field-uiStates' : undefined}
+                          aria-label={`${stateKey} State`}
                           type="text"
                           value={String(desc ?? '')}
                           onChange={(e) => updateUiState(stateKey, e.target.value)}
@@ -4491,12 +5017,16 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <label className="block text-xs font-medium text-slate-300">
+                      <label
+                        htmlFor="field-verificationCommands"
+                        className="block text-xs font-medium text-slate-300"
+                      >
                         Exact Verification Shell Commands (Typecheck, Lint, Scoped Tests)
                       </label>
                       <InfoTooltip text="Shell commands the AI must execute and pass before reporting its work complete." />
                     </div>
                     <input
+                      id="field-verificationCommands"
                       type="text"
                       value={form.verificationCommands}
                       onChange={(e) => updateField('verificationCommands', e.target.value)}
@@ -5088,6 +5618,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       onAutoFill={handleAutoFillSection}
                     />
                     <button
+                      id={form.earsSpecs.length === 0 ? 'field-earsSpecs' : undefined}
                       onClick={addEars}
                       className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 text-xs flex items-center gap-1"
                     >
@@ -5140,6 +5671,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                             WHEN (Trigger Condition)
                           </span>
                           <input
+                            id={idx === 0 ? 'field-earsSpecs' : undefined}
                             type="text"
                             value={item.when}
                             onChange={(e) => editEars(idx, 'when', e.target.value)}
@@ -5482,6 +6014,149 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </button>
                 </div>
               </div>
+
+              {/* Shareable Spec Report Action Bar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedArtifact('FULL_BLUEPRINT_REPORT.md');
+                    void handleCopy(
+                      artifacts['FULL_BLUEPRINT_REPORT.md'].content,
+                      'FULL_BLUEPRINT_REPORT_COPY'
+                    );
+                  }}
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                  title="Copy the complete single-file Markdown blueprint report to your clipboard"
+                >
+                  {copiedKey === 'FULL_BLUEPRINT_REPORT_COPY' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Copied Full Spec Report!</span>
+                    </>
+                  ) : (
+                    <span>📋 Copy Full Spec Report</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedArtifact('FULL_BLUEPRINT_REPORT.md');
+                    void handleDownloadFile(
+                      'FULL_BLUEPRINT_REPORT.md',
+                      artifacts['FULL_BLUEPRINT_REPORT.md'].content
+                    );
+                  }}
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                  title="Download FULL_BLUEPRINT_REPORT.md as a shareable Markdown file"
+                >
+                  <span>📄 Export Shareable Spec Report (.md)</span>
+                </button>
+              </div>
+
+              {/* Collapsible Prompt Readiness Scorecard */}
+              {(() => {
+                const passedCount = scorecardItems.filter((item) => item.passed).length;
+                const totalCount = scorecardItems.length;
+                const allPassed = passedCount === totalCount;
+                return (
+                  <div className="rounded-xl bg-slate-900/90 border border-slate-800/90 overflow-hidden">
+                    <button
+                      type="button"
+                      aria-expanded={showScorecard}
+                      aria-controls="prompt-readiness-checklist"
+                      onClick={() => setShowScorecard((prev) => !prev)}
+                      className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck
+                          className={`w-4 h-4 ${
+                            allPassed ? 'text-emerald-400' : 'text-amber-400'
+                          }`}
+                        />
+                        <span>Prompt Readiness Scorecard</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            allPassed
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          }`}
+                        >
+                          {passedCount}/{totalCount} Ready
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">
+                        {showScorecard ? 'Hide ▲' : 'Show ▼'}
+                      </span>
+                    </button>
+
+                    {showScorecard && (
+                      <div
+                        id="prompt-readiness-checklist"
+                        className="px-3 pb-2.5 pt-1 border-t border-slate-800/80 space-y-1.5"
+                      >
+                        {scorecardItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-2 text-[11px] py-0.5"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {item.passed ? (
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className="w-3.5 h-3.5 text-emerald-400 shrink-0"
+                                />
+                              ) : (
+                                <AlertTriangle
+                                  aria-hidden="true"
+                                  className="w-3.5 h-3.5 text-amber-400 shrink-0"
+                                />
+                              )}
+                              <span className="sr-only">
+                                {item.passed ? 'Passed: ' : 'Needs attention: '}
+                              </span>
+                              <span
+                                className={`truncate ${
+                                  item.passed ? 'text-slate-300' : 'text-amber-200 font-medium'
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                            </div>
+                            {!item.passed && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isSimpleMode && item.tab !== 'ideation' && item.tab !== 'guide') {
+                                    setViewMode('pro');
+                                  } else if (
+                                    isIntermediateMode &&
+                                    item.tab !== 'ideation' &&
+                                    item.tab !== 'prompt5' &&
+                                    item.tab !== 'agentsmd' &&
+                                    item.tab !== 'sdd'
+                                  ) {
+                                    setViewMode('pro');
+                                  }
+                                  setActiveTab(item.tab);
+                                  setMobilePane('editor');
+                                  setPendingScorecardFocus({
+                                    focusId: item.focusId,
+                                    token: Date.now()
+                                  });
+                                }}
+                                className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-semibold shrink-0 transition"
+                              >
+                                Fix Now
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* File Selector Pills */}
               <div
