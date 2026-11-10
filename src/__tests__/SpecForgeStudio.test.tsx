@@ -328,6 +328,47 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(ideaBox.value).toContain('Provide clear loading, empty, and error feedback states');
   });
 
+  it('auto-fills individual prompt & SDD sections with soft amber highlight review and displays plain-English hover tooltips', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const ideaBox = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaBox, {
+      target: { value: 'Build an encrypted medical appointment scheduler for clinics' }
+    });
+
+    // Switch to Pro mode and open the Task Prompt Builder tab
+    fireEvent.click(screen.getByRole('button', { name: /^Pro$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /2\. Task Prompt Builder/i }));
+
+    // Verify helpful hover tooltip is present on Section 1 heading
+    expect(
+      screen.getByTitle(
+        /Putting your most important instructions at the top of the prompt where AI reads them best\./i
+      )
+    ).toBeTruthy();
+
+    // Click ✨ Auto-Fill Section on Section 1 (role_objective)
+    const section1Btn = screen.getByTestId('autofill-section-btn-role_objective');
+    fireEvent.click(section1Btn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('section-autofill-highlight-role_objective')).toBeTruthy();
+    });
+
+    const highlightBox = screen.getByTestId('section-autofill-highlight-role_objective');
+    expect(highlightBox.textContent).toContain(
+      'Architect and ship: Build an encrypted medical appointment scheduler for clinics'
+    );
+
+    // Dismiss highlight via Accept All
+    fireEvent.click(screen.getByRole('button', { name: /Accept All/i }));
+    expect(screen.queryByTestId('section-autofill-highlight-role_objective')).toBeNull();
+  });
+
   it('opens AI Settings modal and saves Gemini API key via desktopAPI', async () => {
     render(<SpecForgeStudio />);
     fireEvent.click(screen.getByTitle(/Configure optional Gemini API key/i));
