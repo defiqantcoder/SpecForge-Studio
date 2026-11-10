@@ -613,25 +613,6 @@ export default function SpecForgeStudio() {
   // Optional toggle inside Simple/Intermediate dock to peek at all 14 files
   const [showAllSimpleFiles, setShowAllSimpleFiles] = useState(false);
   const [showScorecard, setShowScorecard] = useState(false);
-  const [pendingScorecardFocus, setPendingScorecardFocus] = useState<{ tab: string; focusId: string } | null>(null);
-  const scorecardFocusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!pendingScorecardFocus || activeTab !== pendingScorecardFocus.tab) return;
-    scorecardFocusTimerRef.current = setTimeout(() => {
-      const target = document.getElementById(pendingScorecardFocus.focusId);
-      target?.focus();
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingScorecardFocus(null);
-    }, 0);
-    return () => {
-      if (scorecardFocusTimerRef.current !== null) {
-        clearTimeout(scorecardFocusTimerRef.current);
-        scorecardFocusTimerRef.current = null;
-      }
-    };
-  }, [activeTab, viewMode, pendingScorecardFocus]);
-
   // Auto-Expand Options loading & visual highlight state
   const [expandingField, setExpandingField] = useState<ExpandableFieldKey | null>(null);
   const [expandedHighlights, setExpandedHighlights] = useState<
@@ -1978,19 +1959,18 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
 
   const scorecardItems = useMemo(() => {
-    const trimmedText = (value: unknown) => typeof value === 'string' ? value.trim() : '';
     const items = [
       {
         key: 'plainIdea',
         label: 'Clear plain-English idea',
-        isComplete: trimmedText(form.plainIdea).length > 30,
+        isComplete: (form.plainIdea?.length || 0) > 30,
         tab: 'ideation',
         focusId: 'field-plainIdea'
       },
       {
         key: 'targetFilesModify',
         label: 'Target files specified',
-        isComplete: trimmedText(form.targetFilesModify).length > 0,
+        isComplete: (form.targetFilesModify?.trim().length || 0) > 0,
         tab: 'prompt5',
         focusId: 'field-targetFilesModify'
       },
@@ -2004,14 +1984,14 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       {
         key: 'earsCriteria',
         label: 'Testable acceptance criteria (>=2)',
-        isComplete: Array.isArray(form.earsSpecs) && form.earsSpecs.length >= 2 && form.earsSpecs.every((s) => trimmedText(s?.when).length > 0 && trimmedText(s?.shall).length > 0),
+        isComplete: (form.earsSpecs?.length || 0) >= 2 && form.earsSpecs.every((s) => s.when?.trim().length > 0 && s.shall?.trim().length > 0),
         tab: 'sdd',
         focusId: 'field-earsSpecs'
       },
       {
         key: 'verificationCommands',
         label: 'Verification shell commands present',
-        isComplete: trimmedText(form.verificationCommands).length > 0,
+        isComplete: (form.verificationCommands?.trim().length || 0) > 0,
         tab: 'prompt5',
         focusId: 'field-verificationCommands'
       }
@@ -4046,8 +4026,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {Object.entries(form.uiStates).map(([stateKey, desc], idx) => (
+                    {Object.entries(form.uiStates).map(([stateKey, desc]) => (
                       <div
+                        id={stateKey === 'loading' ? 'field-uiStates' : undefined}
                         key={stateKey}
                         className="bg-slate-950 border border-slate-800 rounded-xl p-2.5"
                       >
@@ -4056,7 +4037,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         </span>
                         <input
                           type="text"
-                          id={idx === 0 ? 'field-uiStates' : undefined}
                           value={String(desc ?? '')}
                           onChange={(e) => updateUiState(stateKey, e.target.value)}
                           className="w-full bg-transparent text-xs text-slate-200 focus:outline-none"
@@ -4681,7 +4661,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      id={form.earsSpecs.length === 0 ? 'field-earsSpecs' : undefined}
                       onClick={addEars}
                       className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 text-xs flex items-center gap-1"
                     >
@@ -4727,7 +4706,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                           </span>
                           <input
                             type="text"
-                            id={idx === 0 ? 'field-earsSpecs' : undefined}
                             value={item.when}
                             onChange={(e) => editEars(idx, 'when', e.target.value)}
                             className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white"
@@ -5065,9 +5043,6 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <span className="text-xs font-semibold text-slate-200">Prompt Readiness Scorecard</span>
                 </div>
                 <button
-                  type="button"
-                  aria-expanded={showScorecard}
-                  aria-controls="prompt-readiness-checklist"
                   onClick={() => setShowScorecard(!showScorecard)}
                   className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition ${scorecardItems.badgeColor}`}
                 >
@@ -5076,14 +5051,14 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </div>
 
               {showScorecard && (
-                <div id="prompt-readiness-checklist" className="mt-3 space-y-1.5">
+                <div className="mt-3 space-y-1.5">
                   {scorecardItems.items.map((item) => (
                     <div key={item.key} className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
                       <div className="flex items-center gap-2">
                         {item.isComplete ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         ) : (
-                          <div aria-hidden="true" className="w-4 h-4 rounded-full border border-slate-600" />
+                          <div className="w-4 h-4 rounded-full border border-slate-600" />
                         )}
                         <span className={`text-xs ${item.isComplete ? 'text-slate-300' : 'text-slate-400'}`}>
                           {item.label}
@@ -5093,15 +5068,11 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         <button
                           onClick={() => {
                             setMobilePane('editor');
-                            const simpleTabs = ['ideation', 'guide'];
-                            const intermediateTabs = ['ideation', 'prompt5', 'agentsmd', 'sdd'];
-                            if (isSimpleMode && !simpleTabs.includes(item.tab)) {
-                              handleChangeViewMode(intermediateTabs.includes(item.tab) ? 'intermediate' : 'pro');
-                            } else if (isIntermediateMode && !intermediateTabs.includes(item.tab)) {
-                              handleChangeViewMode('pro');
-                            }
-                            setPendingScorecardFocus({ tab: item.tab, focusId: item.focusId });
                             setActiveTab(item.tab);
+                            setTimeout(() => {
+                              document.getElementById(item.focusId)?.focus();
+                              document.getElementById(item.focusId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 100);
                           }}
                           className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-semibold transition"
                         >
