@@ -51,7 +51,7 @@ const LOCAL_DRAFT_STORAGE_KEY = 'specforge-studio:draft-v1';
 const LOCAL_BLUEPRINTS_STORAGE_KEY = 'specforge-studio:blueprints-v1';
 
 const escapeMarkdownTableCell = (value: string) =>
-  value.replace(/\|/g, '\\|').replace(/\r\n|\r|\n/g, ' ');
+  value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r\n|\r|\n/g, ' ');
 
 // ============================================================================
 // DUMMY-PROOF HELPER CHIPS & FILE PLACEMENT INSTRUCTIONS
