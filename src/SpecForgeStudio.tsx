@@ -601,6 +601,59 @@ function JargonTranslationCard({
   );
 }
 
+const DEFAULT_FORM = {
+      ...PRESETS.web_nextjs,
+      // Platform-specific extra config fields
+      pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
+      desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
+      // Antigravity Rule Config
+      agyRuleName: 'architecture-boundaries',
+      agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
+      agyGlobs: '*.tsx, src/features/**/*.ts',
+      agyRuleDescription:
+        'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
+      // Antigravity Skill Config
+      agySkillName: 'verify-vertical-slice',
+      agySkillDescription:
+        'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
+      // Copilot Path-Specific Instruction Config
+      copilotInstructionName: 'domain-boundaries',
+      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
+      copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
+      // Copilot Custom Agent Config
+      copilotAgentName: 'implementation-planner',
+      copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
+      // Monorepo Nested AGENTS.md Config
+      enableNestedAgents: true,
+      nestedSubprojectPath: 'apps/mobile',
+      nestedCommandOverrides:
+        'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
+      nestedLocalConstraints:
+        'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
+    };
+
+// Stored JSON is untrusted; partial forms are supported, but known fields must
+// retain their established types before they can reach rendering or loading.
+function matchesDefaults(value: unknown, defaults: unknown): boolean {
+  if (Array.isArray(defaults)) return Array.isArray(value) && value.every(item => typeof item === 'string');
+  if (defaults && typeof defaults === 'object') {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value)) &&
+      Object.entries(value as Record<string, unknown>).every(([key, field]) =>
+        !(key in defaults) || matchesDefaults(field, (defaults as Record<string, unknown>)[key]));
+  }
+  return typeof value === typeof defaults;
+}
+
+function isValidSavedPreset(item: any): boolean {
+  return Boolean(item && typeof item === 'object' &&
+    typeof item.id === 'string' && item.id.trim() &&
+    typeof item.name === 'string' &&
+    (item.updatedAt === undefined || typeof item.updatedAt === 'number') &&
+    (item.platform === undefined || typeof item.platform === 'string') &&
+    (item.agent === undefined || typeof item.agent === 'string') &&
+    matchesDefaults(item.form, DEFAULT_FORM));
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
@@ -657,6 +710,43 @@ export default function SpecForgeStudio() {
   const [presetsModalOpen, setPresetsModalOpen] = useState(false);
   const [savedPresets, setSavedPresets] = useState<any[]>([]);
   const [presetNameInput, setPresetNameInput] = useState('');
+  const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!presetsModalOpen) return;
+    const dialog = presetsDialogRef.current!;
+    const trigger = document.activeElement as HTMLElement | null;
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), [tabindex="0"]'
+    ));
+    const focusInside = () => (focusable()[0] || dialog).focus();
+    focusInside();
+    const onFocus = (event: FocusEvent) => {
+      if (!dialog.contains(event.target as Node)) focusInside();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setPresetsModalOpen(false);
+      } else if (event.key === 'Tab') {
+        const items = focusable();
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (!items.length || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last || dialog : first || dialog).focus();
+        }
+      }
+    };
+    document.addEventListener('focusin', onFocus);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('focusin', onFocus);
+      document.removeEventListener('keydown', onKey);
+      trigger?.focus();
+    };
+  }, [presetsModalOpen]);
+
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
@@ -685,36 +775,7 @@ export default function SpecForgeStudio() {
 
   // Core Form State initialized from saved draft or Web Next.js 15 preset
   const [form, setForm] = useState<any>(() => {
-    const defaultForm = {
-      ...PRESETS.web_nextjs,
-      // Platform-specific extra config fields
-      pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
-      desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
-      // Antigravity Rule Config
-      agyRuleName: 'architecture-boundaries',
-      agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
-      agyGlobs: '*.tsx, src/features/**/*.ts',
-      agyRuleDescription:
-        'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
-      // Antigravity Skill Config
-      agySkillName: 'verify-vertical-slice',
-      agySkillDescription:
-        'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
-      // Copilot Path-Specific Instruction Config
-      copilotInstructionName: 'domain-boundaries',
-      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
-      copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
-      // Copilot Custom Agent Config
-      copilotAgentName: 'implementation-planner',
-      copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
-      // Monorepo Nested AGENTS.md Config
-      enableNestedAgents: true,
-      nestedSubprojectPath: 'apps/mobile',
-      nestedCommandOverrides:
-        'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
-      nestedLocalConstraints:
-        'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
-    };
+
 
     try {
       const savedDraft = localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY);
@@ -722,10 +783,10 @@ export default function SpecForgeStudio() {
         const parsed = JSON.parse(savedDraft);
         if (parsed?.form) {
           return {
-            ...defaultForm,
+            ...DEFAULT_FORM,
             ...parsed.form,
             uiStates: {
-              ...defaultForm.uiStates,
+              ...DEFAULT_FORM.uiStates,
               ...(parsed.form.uiStates || {})
             }
           };
@@ -735,7 +796,7 @@ export default function SpecForgeStudio() {
       // ignore malformed draft
     }
 
-    return defaultForm;
+    return DEFAULT_FORM;
   });
 
   // AI Loading & Socratic /grill-me Interview State
@@ -765,7 +826,7 @@ export default function SpecForgeStudio() {
   const handleSavePreset = () => {
     if (!presetNameInput.trim()) return;
     const newPreset = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       name: presetNameInput.trim(),
       updatedAt: Date.now(),
       platform: form.platform,
@@ -773,8 +834,13 @@ export default function SpecForgeStudio() {
       form: { ...form }
     };
     const next = [newPreset, ...savedPresets];
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      setStatusMessageWithTimeout({ type: 'error', text: 'Could not save preset. Please check available storage and try again.' });
+      return;
+    }
     setSavedPresets(next);
-    localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
     setPresetNameInput('');
     setStatusMessageWithTimeout({
       type: 'success',
@@ -783,7 +849,12 @@ export default function SpecForgeStudio() {
   };
 
   const handleLoadPreset = (preset: any) => {
-    setForm({ ...preset.form });
+    setForm({
+      ...DEFAULT_FORM,
+      ...preset.form,
+      uiStates: { ...DEFAULT_FORM.uiStates, ...preset.form.uiStates }
+    });
+    setProjectTitle(preset.name);
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'success',
@@ -849,8 +920,18 @@ export default function SpecForgeStudio() {
     void refreshBlueprints();
     try {
       const raw = localStorage.getItem(LOCAL_PRESETS_STORAGE_KEY);
-      if (raw) setSavedPresets(JSON.parse(raw));
-    } catch {}
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error('Expected an array of presets');
+        const valid = parsed.filter(isValidSavedPreset);
+        setSavedPresets(valid);
+        if (valid.length !== parsed.length) {
+          setStatusMessageWithTimeout({ type: 'error', text: 'Some saved presets were invalid and could not be loaded.' });
+        }
+      }
+    } catch {
+      setStatusMessageWithTimeout({ type: 'error', text: 'Could not read saved presets. Stored data may be malformed or storage unavailable.' });
+    }
 
     if (window.desktopAPI) {
       window.desktopAPI.getAppInfo().then(setDesktopInfo).catch(console.error);
@@ -2535,12 +2616,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
          ==================================================================== */}
       {presetsModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+          <div ref={presetsDialogRef} role="dialog" aria-modal="true" aria-labelledby="presets-dialog-title" tabIndex={-1} className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <Bookmark className="w-5 h-5 text-cyan-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="presets-dialog-title" className="text-base font-bold text-white">
                     Saved Project Presets
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -2621,6 +2702,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                               Load
                             </button>
                             <button
+                              aria-label={`Delete preset "${item.name}"`}
                               onClick={() => handleDeletePreset(item.id)}
                               className="px-3 py-1 rounded bg-rose-600/20 text-rose-300 text-[11px] font-medium hover:bg-rose-600/30"
                             >
@@ -2929,7 +3011,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       {statusMessage && (
         <div
           className={`max-w-[1600px] w-full mx-auto px-4 sm:px-6 pt-3 ${
-            cloudModalOpen || settingsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
+            cloudModalOpen || settingsModalOpen || presetsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
           }`}
         >
           <div

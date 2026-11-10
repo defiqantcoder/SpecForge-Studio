@@ -91,7 +91,7 @@ describe('SpecForgeStudio Desktop UI', () => {
     // Open again to delete
     act(() => { fireEvent.click(openModalBtn); });
     await waitFor(() => {});
-    const deleteBtn = screen.getByRole('button', { name: 'Delete' });
+    const deleteBtn = screen.getByRole('button', { name: 'Delete preset \"My Fitness App\"' });
     act(() => { fireEvent.click(deleteBtn); });
     await waitFor(() => {});
 
@@ -105,6 +105,75 @@ describe('SpecForgeStudio Desktop UI', () => {
     act(() => { fireEvent.click(resetBtn); });
     await waitFor(() => {});
     expect(screen.queryByText('Saved Project Presets')).toBeNull(); // Modal closed on reset
+  });
+
+  it('preserves the input and list when preset persistence fails, then saves distinct IDs', async () => {
+    await act(async () => { render(<SpecForgeStudio />); });
+    fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
+    const input = screen.getByPlaceholderText('e.g., My SaaS App') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Retry project' } });
+    const original = Storage.prototype.setItem;
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === 'specforge_saved_presets_v1') throw new Error('Quota exceeded');
+      original.call(this, key, value);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Preset' }));
+    expect(input.value).toBe('Retry project');
+    expect(screen.getByText('No presets saved yet.')).toBeTruthy();
+    expect(screen.getByText(/Could not save preset/)).toBeTruthy();
+    storage.mockRestore();
+    for (const name of ['First', 'Second']) {
+      fireEvent.change(input, { target: { value: name } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Preset' }));
+    }
+    const presets = JSON.parse(localStorage.getItem('specforge_saved_presets_v1')!);
+    expect(new Set(presets.map((p: { id: string }) => p.id)).size).toBe(2);
+    expect(screen.getByText('Saved preset "Second"!').parentElement?.parentElement?.parentElement?.className).toContain('z-[60]');
+  });
+
+  it('loads partial presets with defaults and their project name', async () => {
+    localStorage.setItem('specforge_saved_presets_v1', JSON.stringify([
+      { id: 'old', name: 'Legacy project', form: { plainIdea: 'Legacy idea', uiStates: { loading: 'Legacy loading' } } }
+    ]));
+    await act(async () => { render(<SpecForgeStudio />); });
+    fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }));
+    const draft = JSON.parse(localStorage.getItem('specforge-studio:draft-v1')!);
+    expect(draft.projectTitle).toBe('Legacy project');
+    expect(draft.form.plainIdea).toBe('Legacy idea');
+    expect(draft.form.platform).toBe('web');
+    expect(draft.form.uiStates.loading).toBe('Legacy loading');
+    expect(Object.keys(draft.form.uiStates).length).toBeGreaterThan(1);
+  });
+
+  it.each(['{broken', '{}', JSON.stringify([null, { id: 'bad', name: {}, form: {} }, { id: 'bad-form', name: 'Bad', form: [] }])])(
+    'handles malformed stored presets: %s', async (raw) => {
+      localStorage.setItem('specforge_saved_presets_v1', raw);
+      await act(async () => { render(<SpecForgeStudio />); });
+      fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
+      expect(screen.getByText('No presets saved yet.')).toBeTruthy();
+      expect(screen.getByText(/could not be loaded|Could not read saved presets/)).toBeTruthy();
+    }
+  );
+
+  it('contains dialog focus, closes with Escape, and restores its trigger', async () => {
+    await act(async () => { render(<SpecForgeStudio />); });
+    const trigger = screen.getByRole('button', { name: /Saved Projects/i });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole('dialog', { name: 'Saved Project Presets' });
+    const close = within(dialog).getByRole('button', { name: 'Close' });
+    const last = within(dialog).getByRole('button', { name: 'Reset to Default' });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(document.activeElement).toBe(close);
+    trigger.focus();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
   let mockApi: DesktopAPI;
