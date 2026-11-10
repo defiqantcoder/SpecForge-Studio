@@ -1958,6 +1958,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
   }, [artifacts, form]);
 
 
+  const uiStateEntries = Object.entries({ loading: '', empty: '', error: '', offline: '', disabled: '', success: '', ...form.uiStates });
+  const firstIncompleteUiState = uiStateEntries.find(([, desc]) => !String(desc ?? '').trim())?.[0] ?? 'loading';
+
   const scorecardItems = useMemo(() => {
     const items = [
       {
@@ -1984,7 +1987,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       {
         key: 'earsCriteria',
         label: 'Testable acceptance criteria (>=2)',
-        isComplete: (form.earsSpecs?.length || 0) >= 2 && form.earsSpecs.every((s) => s.when?.trim().length > 0 && s.shall?.trim().length > 0),
+        isComplete: (form.earsSpecs?.filter((s) => s.when?.trim().length > 0 && s.shall?.trim().length > 0).length || 0) >= 2,
         tab: 'sdd',
         focusId: 'field-earsSpecs'
       },
@@ -4026,7 +4029,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {Object.entries({ loading: '', empty: '', error: '', offline: '', disabled: '', success: '', ...form.uiStates }).map(([stateKey, desc]) => (
+                    {uiStateEntries.map(([stateKey, desc]) => (
                       <div
                         key={stateKey}
                         className="bg-slate-950 border border-slate-800 rounded-xl p-2.5"
@@ -4036,7 +4039,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         </span>
                         <input
                           type="text"
-                          id={stateKey === 'loading' ? 'field-uiStates' : undefined}
+                          id={stateKey === firstIncompleteUiState ? 'field-uiStates' : undefined}
                           aria-label={`${stateKey} State`}
                           value={String(desc ?? '')}
                           onChange={(e) => updateUiState(stateKey, e.target.value)}
