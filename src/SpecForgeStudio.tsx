@@ -1395,7 +1395,7 @@ For each question, provide 3 concrete multiple-choice options where the first op
   // GENERATED ARTIFACTS COMPILER (Real-time synthesis of all files)
   // ============================================================================
   const formatPointer = (str) => {
-    if (!str) return '';
+    if (typeof str !== 'string' || !str) return '';
     if (form.pointerStyle === '#file') {
       return str.replace(/@([^\s,;]+)/g, '#file:$1');
     }
@@ -1970,7 +1970,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       {
         key: 'targetFilesModify',
         label: 'Target files specified',
-        isComplete: (form.targetFilesModify?.trim().length || 0) > 0,
+        isComplete: typeof form.targetFilesModify === 'string' && form.targetFilesModify.trim().length > 0,
         tab: 'prompt5',
         focusId: 'field-targetFilesModify'
       },
@@ -1991,7 +1991,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       {
         key: 'verificationCommands',
         label: 'Verification shell commands present',
-        isComplete: (form.verificationCommands?.trim().length || 0) > 0,
+        isComplete: typeof form.verificationCommands === 'string' && form.verificationCommands.trim().length > 0,
         tab: 'prompt5',
         focusId: 'field-verificationCommands'
       }
@@ -5063,6 +5063,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         )}
                         <span className={`text-xs ${item.isComplete ? 'text-slate-300' : 'text-slate-400'}`}>
                           {item.label}
+                          <span className="sr-only">: {item.isComplete ? 'Complete' : 'Incomplete'}</span>
                         </span>
                       </div>
                       {!item.isComplete && (

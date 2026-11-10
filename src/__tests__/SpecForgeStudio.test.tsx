@@ -376,6 +376,37 @@ describe('SpecForgeStudio Desktop UI', () => {
     }
   );
 
+  it.each([
+    [null, null, false, false],
+    [false, true, false, false],
+    [42, {}, false, false],
+    [[], ['npm test'], false, false],
+    ['', '   ', false, false],
+    ['  src/app.ts  ', '   ', true, false],
+    ['  ', '  npm test  ', false, true]
+  ])(
+    'reports scorecard completion for target files %j and commands %j',
+    async (targetFilesModify, verificationCommands, targetComplete, commandsComplete) => {
+      localStorage.setItem('specforge-studio:draft-v1', JSON.stringify({
+        form: { targetFilesModify, verificationCommands }
+      }));
+      render(<SpecForgeStudio />);
+      await waitFor(() => expect(mockApi.listBlueprints).toHaveBeenCalled());
+      fireEvent.click(screen.getByText(/Needs Details \(\d+%\)|Good \(\d+%\)|Production-Ready/i, { selector: 'button' }));
+
+      for (const [label, complete] of [
+        ['Target files specified', targetComplete],
+        ['Verification shell commands present', commandsComplete]
+      ] as const) {
+        const criterion = screen.getByText(label);
+        const status = within(criterion).getByText(complete ? ': Complete' : ': Incomplete');
+        expect(status.classList.contains('sr-only')).toBe(true);
+        const row = criterion.closest('div')!.parentElement!;
+        expect(within(row).queryByRole('button', { name: 'Fix Now' }) !== null).toBe(!complete);
+      }
+    }
+  );
+
   it('renders and interacts with the Prompt Readiness Scorecard', async () => {
     render(<SpecForgeStudio />);
 

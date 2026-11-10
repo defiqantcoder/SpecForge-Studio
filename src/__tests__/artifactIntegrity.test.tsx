@@ -87,12 +87,12 @@ describe('Artifact Integrity Test', () => {
     expect(openingEOF).toBeGreaterThan(0);
     expect(openingEOF).toEqual(closingEOF);
 
-    // 3. Verify AGENTS.md size limit
-    const agentsMd = files.find((f: any) => f.relativePath === 'AGENTS.md');
-    expect(agentsMd).toBeDefined();
+    // 3. Verify Antigravity rule size limit
+    const ruleFile = files.find((f: any) => /^\.agents\/rules\/[^/]+\.md$/.test(f.relativePath));
+    expect(ruleFile).toBeDefined();
 
     // Antigravity limit is 24000 bytes
-    const agentsMdBytes = new Blob([agentsMd.content]).size;
-    expect(agentsMdBytes).toBeLessThan(24000);
+    const ruleFileBytes = new Blob([ruleFile.content]).size;
+    expect(ruleFileBytes).toBeLessThan(24000);
   });
 });
