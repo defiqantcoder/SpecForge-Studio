@@ -1,7 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import * as fs from 'fs';
-import { randomUUID } from 'crypto';
 import * as os from 'os';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -120,46 +119,28 @@ function maskKey(key: string): string {
 }
 
 /**
- * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
+ * Atomically replaces settings and removes temporary data if any write step fails.
  */
-
-/**
- * Atomically writes JSON to a file by writing to a temporary file first and renaming.
- * Ensures that file writes, mode changes, and renames succeed together.
- */
-function atomicWriteJsonSettings(filePath: string, data: any, mode?: number): void {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const tempPath = `${filePath}.tmp-${randomUUID()}`;
-    let fd: number;
+function writeSettingsAtomically(settingsPath: string, payload: StoredSettings): void {
+  const tempPath = `${settingsPath}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+    fs.chmodSync(tempPath, 0o600);
+    fs.renameSync(tempPath, settingsPath);
+    fs.chmodSync(settingsPath, 0o600);
+  } catch (error) {
     try {
-      fd = fs.openSync(tempPath, 'wx', 0o600);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'EEXIST' && attempt < 9) continue;
-      throw err;
+      fs.unlinkSync(tempPath);
+    } catch {
+      // Cleanup must not replace the original write error.
     }
-
-    try {
-      try {
-        fs.writeFileSync(fd, JSON.stringify(data, null, 2), { encoding: 'utf8' });
-        if (mode !== undefined) {
-          fs.fchmodSync(fd, mode);
-        }
-      } finally {
-        fs.closeSync(fd);
-      }
-      fs.renameSync(tempPath, filePath);
-      return;
-    } catch (err) {
-      try {
-        fs.unlinkSync(tempPath);
-      } catch (cleanupErr) {
-        console.warn('Failed to clean up temporary file:', cleanupErr);
-      }
-      throw err;
-    }
+    throw error;
   }
 }
 
+/**
+ * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
+ */
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
@@ -167,7 +148,7 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
 
   if (!trimmed) {
     if (fs.existsSync(settingsPath)) {
-      atomicWriteJsonSettings(settingsPath, {});
+      writeSettingsAtomically(settingsPath, {});
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {
@@ -184,7 +165,8 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
     payload.geminiKeyPlain = trimmed;
   }
 
-  atomicWriteJsonSettings(settingsPath, payload, 0o600);
+  writeSettingsAtomically(settingsPath, payload);
+
   return {
     hasKey: true,
     source: 'stored',
