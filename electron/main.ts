@@ -121,6 +121,31 @@ function maskKey(key: string): string {
 /**
  * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
  */
+
+/**
+ * Helper to perform an atomic file write with optional chmod.
+ */
+function atomicWriteFileSync(filePath: string, content: string, mode?: number): void {
+  const tempPath = `${filePath}.tmp.${Date.now()}`;
+  try {
+    if (mode !== undefined) {
+      fs.writeFileSync(tempPath, content, { encoding: 'utf8', mode });
+    } else {
+      fs.writeFileSync(tempPath, content, 'utf8');
+    }
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw err;
+  }
+}
+
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
@@ -128,7 +153,7 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
 
   if (!trimmed) {
     if (fs.existsSync(settingsPath)) {
-      fs.writeFileSync(settingsPath, JSON.stringify({}, null, 2), 'utf8');
+      atomicWriteFileSync(settingsPath, JSON.stringify({}, null, 2));
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {
@@ -145,7 +170,7 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
     payload.geminiKeyPlain = trimmed;
   }
 
-  fs.writeFileSync(settingsPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+  atomicWriteFileSync(settingsPath, JSON.stringify(payload, null, 2), 0o600);
   return {
     hasKey: true,
     source: 'stored',
