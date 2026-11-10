@@ -35,6 +35,20 @@ Download the latest binaries from the [GitHub Releases](https://github.com/defiq
 
 ## Development & Build Scripts
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:c7991d31bb07d8ec032befb02550851840e78c8907c5d483e42623a8765c1a2f -->
+
+The Electron development and start workflows require Node.js **22.12.0 or later**. Install [nvm](https://github.com/nvm-sh/nvm#installing-and-updating), then install and select Node.js 22:
+
+```bash
+nvm install 22
+nvm use 22
+node --version
+```
+
+<!-- /coderabbit-ai-generated:v1 -->
+
 ```bash
 # Install dependencies
 npm install

@@ -12,6 +12,9 @@
     "email": "starwarshellyeah69@pm.me"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
