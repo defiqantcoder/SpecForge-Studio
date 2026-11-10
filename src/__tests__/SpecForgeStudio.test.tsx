@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import SpecForgeStudio from '../SpecForgeStudio';
 import type { DesktopAPI } from '../types/desktop';
 
@@ -50,6 +50,63 @@ function createMockDesktopAPI(): DesktopAPI {
 }
 
 describe('SpecForgeStudio Desktop UI', () => {
+
+  it('allows saving, loading, and deleting a named preset from localStorage', async () => {
+    render(<SpecForgeStudio />);
+
+    // Open presets modal
+    const openModalBtn = screen.getByRole('button', { name: /Saved Projects/i });
+    act(() => { fireEvent.click(openModalBtn); });
+    await waitFor(() => {});
+
+    // Wait for modal to appear
+    expect(screen.getByText('Saved Project Presets')).toBeTruthy();
+
+    // Type preset name and save
+    const input = screen.getByPlaceholderText('e.g., My SaaS App');
+    act(() => { fireEvent.change(input, { target: { value: 'My Fitness App' } }); });
+    await waitFor(() => {});
+    const saveBtn = screen.getByRole('button', { name: 'Save Preset' });
+    act(() => { fireEvent.click(saveBtn); });
+    await waitFor(() => {});
+
+    // Verify it was saved
+    expect(screen.getByText('My Fitness App')).toBeTruthy();
+    const raw = localStorage.getItem('specforge_saved_presets_v1');
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw!)[0].name).toBe('My Fitness App');
+
+    // Close modal
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Close' })); });
+    await waitFor(() => {});
+
+    // Open again to load
+    act(() => { fireEvent.click(openModalBtn); });
+    await waitFor(() => {});
+    const loadBtn = screen.getByRole('button', { name: 'Load' });
+    act(() => { fireEvent.click(loadBtn); });
+    await waitFor(() => {});
+    expect(screen.queryByText('Saved Project Presets')).toBeNull(); // Modal closed on load
+
+    // Open again to delete
+    act(() => { fireEvent.click(openModalBtn); });
+    await waitFor(() => {});
+    const deleteBtn = screen.getByRole('button', { name: 'Delete' });
+    act(() => { fireEvent.click(deleteBtn); });
+    await waitFor(() => {});
+
+    // Verify it was deleted
+    expect(screen.queryByText('My Fitness App')).toBeNull();
+    const rawAfterDelete = localStorage.getItem('specforge_saved_presets_v1');
+    expect(JSON.parse(rawAfterDelete!).length).toBe(0);
+
+    // Reset to default
+    const resetBtn = screen.getByRole('button', { name: 'Reset to Default' });
+    act(() => { fireEvent.click(resetBtn); });
+    await waitFor(() => {});
+    expect(screen.queryByText('Saved Project Presets')).toBeNull(); // Modal closed on reset
+  });
+
   let mockApi: DesktopAPI;
 
   beforeEach(() => {
