@@ -924,6 +924,11 @@ function useModalFocusTrap(
   onClose: () => void,
   dialogRef: React.RefObject<HTMLElement | null>
 ) {
+  const onCloseRef = React.useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -944,7 +949,7 @@ function useModalFocusTrap(
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
       } else if (e.key === 'Tab' && dialog) {
         const focusable = dialog.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -974,7 +979,7 @@ function useModalFocusTrap(
         previousFocus.focus();
       }
     };
-  }, [isOpen, onClose, dialogRef]);
+  }, [isOpen, dialogRef]);
 }
 
 export default function SpecForgeStudio() {
@@ -3156,7 +3161,7 @@ ${slicesFormatted}
       {cloudModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={(e) => {
+          onMouseDown={(e) => {
             if (e.target === e.currentTarget) setCloudModalOpen(false);
           }}
         >
@@ -3366,7 +3371,7 @@ ${slicesFormatted}
       {settingsModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={(e) => {
+          onMouseDown={(e) => {
             if (e.target === e.currentTarget) setSettingsModalOpen(false);
           }}
         >

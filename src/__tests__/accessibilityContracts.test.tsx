@@ -181,4 +181,37 @@ describe('Accessibility Contracts', () => {
     expect(document.activeElement).toBe(openButton);
   });
 
+  it.each([
+    [/Blueprints \(/i, /Local Desktop Blueprints/i, 'e.g., work-2026'],
+    [/AI Key/i, /Desktop AI Settings/i, 'AIza...'],
+  ])('keeps focus during edits and dismisses on direct backdrop press (%s)', async (buttonName, dialogName, placeholder) => {
+    render(<SpecForgeStudio />);
+    await waitFor(() => expect(mockApi.listBlueprints).toHaveBeenCalled());
+
+    const openButton = screen.getByRole('button', { name: buttonName });
+    openButton.focus();
+    fireEvent.click(openButton);
+    const dialog = screen.getByRole('dialog', { name: dialogName });
+    const input = within(dialog).getByPlaceholderText(placeholder);
+    input.focus();
+    fireEvent.change(input, { target: { value: 'test edit' } });
+    expect(document.activeElement).toBe(input);
+
+    // A press inside followed by a release/click on the backdrop must stay open.
+    const backdrop = dialog.parentElement!;
+    fireEvent.mouseDown(input);
+    fireEvent.mouseUp(backdrop);
+    fireEvent.click(backdrop);
+    expect(screen.getByRole('dialog', { name: dialogName })).toBe(dialog);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: dialogName })).toBeNull();
+    expect(document.activeElement).toBe(openButton);
+
+    fireEvent.click(openButton);
+    fireEvent.mouseDown(screen.getByRole('dialog', { name: dialogName }).parentElement!);
+    expect(screen.queryByRole('dialog', { name: dialogName })).toBeNull();
+    expect(document.activeElement).toBe(openButton);
+  });
+
 });
