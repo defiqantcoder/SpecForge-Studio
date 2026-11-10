@@ -1,21 +1,28 @@
 # SpecForge Studio — Complete AI Agent Project Handoff Bundle
 
-This single file contains the complete source code, Electron main/preload/security layer, React frontend, tests, build configuration, Ubuntu 24.04 scripts, CI/CD workflows, and vector icon needed for another AI coding agent to understand, audit, modify, test, or reconstruct **SpecForge Studio** (`v1.0.2`).
+This single file contains the complete source code, Electron main/preload/security layer, React 19 frontend, Vitest test suites, security & contribution policies, build configuration, Ubuntu 24.04 scripts, CI/CD workflows, and vector icon needed for another AI coding agent to understand, audit, modify, test, or reconstruct **SpecForge Studio** (`v1.2.1`).
 
 ---
 
 ## 1. Project Overview & Architecture
 
-- **Product**: SpecForge Studio — offline-first Ubuntu 24.04 LTS desktop application that turns plain-English feature ideas into Spec-Driven Development (SDD) artifacts (`TASK_PROMPT.md`, `AGENTS.md`, `.agents/rules/*`, `.agents/skills/*`, `.github/copilot-instructions.md`, `.github/instructions/*`, `.github/agents/*`, `.github/workflows/copilot-setup-steps.yml`, `jules-setup.sh`, `bootstrap-agy.sh`, `.specify/memory/constitution.md`, `specs/001-feature/spec.md`, `specs/001-feature/tasks.md`).
-- **Repository**: `https://github.com/defiqantcoder/SpecForge-Studio` (`main`, tag `v1.0.2`)
+- **Product**: SpecForge Studio — offline-first Ubuntu 24.04 LTS desktop application that turns plain-English feature ideas into 15 Spec-Driven Development (SDD) artifacts (`FULL_BLUEPRINT_REPORT.md`, `TASK_PROMPT.md`, `AGENTS.md`, `apps/mobile/AGENTS.md`, `.agents/rules/*`, `.agents/skills/*`, `.github/copilot-instructions.md`, `.github/instructions/*`, `.github/agents/*`, `.github/workflows/copilot-setup-steps.yml`, `jules-setup.sh`, `bootstrap-agy.sh`, `.specify/memory/constitution.md`, `specs/001-feature/spec.md`, `specs/001-feature/tasks.md`).
+- **Repository**: `https://github.com/defiqantcoder/SpecForge-Studio` (`main`, tag `v1.2.1`)
 - **Tech Stack**:
-  - Desktop Shell: **Electron `^45.2.3`**, **electron-builder `^26.0.12`** (Linux `.deb`, `.AppImage`, `dir`)
-  - Frontend: **React `^19.1.0`**, **TypeScript `^5.8.3`**, **Vite `^6.3.4`**, **Tailwind CSS `^4.1.5`**, **lucide-react `^0.511.0`**
-  - Testing: **Vitest `^4.1.12`**, **@testing-library/react `^16.3.0`**, **jsdom `^26.1.0`**
+  - Desktop Shell: **Electron `^45.2.3`**, **electron-builder `^26.18.0`** (Linux `.deb`, `.AppImage`, `dir`)
+  - Frontend: **React `^19.1.0`**, **TypeScript `^5.8.3`**, **Vite `^6.4.6`**, **Tailwind CSS `^4.1.5`**, **lucide-react `^0.511.0`**
+  - Testing: **Vitest `^4.1.12`**, **@testing-library/react `^16.3.0`**, **jsdom `^26.1.0`**, **marked `^18.2.0`**
+- **Key Features in `v1.2.1`**:
+  - **3-Way View Mode Selector**: `Simple` (No-Code 2-step wizard & 3 essential files), `Intermediate` (Pro-Light 4 tabs, Jargon Translation Cards, Plain-English Rule Checkboxes, Simplified `[HITL]`/`[AFK]` Task Slicer, and 6 core files), and `Pro` (All 6 tabs & all 15 generated artifacts).
+  - **Field & Section AI Auto-Fill + Soft Amber Review Highlights**: Field-level `✨ Auto-Expand Options` and card-level `✨ Auto-Fill Section` buttons powered by Gemini (`generateGeminiStructured`) with deterministic offline fallback templates and dismissible `Accept All` amber review highlights.
+  - **Plain-English Hover Tooltips & Human-Readable Diagnostics**: Context-aware `InfoTooltip` (`ℹ️`) badges across form headings/labels plus plain-language Rule Size, Prompt Length, and Memory Safety status cards.
+  - **Saved Project Presets (`specforge_saved_presets_v1`)**: Header modal (`📂 Saved Projects`) to save, load, delete, and reset named presets in `localStorage` with recursive runtime schema validation (`matchesDefaults`, `isValidSavedPreset`) and keyboard focus trapping.
+  - **Shareable Full Spec Report (`FULL_BLUEPRINT_REPORT.md`)**: Single-file master Markdown blueprint with 1-click Copy and Export (`.md`) actions in the Artifact Dock header.
+  - **Prompt Readiness Scorecard**: Live 6-point readiness checklist in the Artifact Dock header with 1-click `Fix Now` buttons that automatically switch view mode/tabs and focus the target input.
 - **Process & Security Architecture (3-Tier Isolation)**:
   1. **Main Process (`electron/main.ts`)**: `BrowserWindow` enforces `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`. `setWindowOpenHandler` and `will-navigate` parse URLs via `new URL()` and lock packaged navigation strictly to `DIST_INDEX_URL`. Every `ipcMain.handle` calls `assertTrustedIpcSender(event)` and validates payload types. Filesystem writes use `resolveSafeChildPath` (`electron/pathSecurity.ts`) to reject path traversal, absolute paths, null bytes, and root-equivalent `.`. Gemini API keys are stored via Electron `safeStorage` (or `GEMINI_API_KEY` env var) and Gemini calls run in Main (`ai:generateStructured`).
   2. **Preload (`electron/preload.ts`)**: Exposes only the narrow `window.desktopAPI` contract defined in `electron/types.ts` via `contextBridge.exposeInMainWorld`.
-  3. **Renderer (`src/SpecForgeStudio.tsx`)**: Strict CSP in `index.html`; Simple Mode (No-Code) vs Pro Mode (All 14 Files), visual pickers, Offline Smart-Template fallback, Next Step Action Box, and `window.desktopAPI` integration with browser fallback.
+  3. **Renderer (`src/SpecForgeStudio.tsx`)**: Strict CSP in `index.html`; `window.desktopAPI` integration with browser fallback.
 - **Ubuntu 24.04 Specifics**:
   - Ubuntu 24.04 sets `kernel.apparmor_restrict_unprivileged_userns=1`, so unpackaged/AppImage launches require `--no-sandbox` (handled in `electron/main.ts`, `scripts/launch-ubuntu.sh`, `scripts/install-desktop-entry.sh`, and `package.json` `electron:dev`/`electron:start`).
   - `npm run electron:build` passes `--publish never` so CI builds do not fail attempting implicit GitHub publishing without `GH_TOKEN`.
@@ -70,6 +77,8 @@ for size in [48, 64, 128, 256, 512]:
 - `.gitignore`
 - `LICENSE`
 - `README.md`
+- `SECURITY.md`
+- `CONTRIBUTING.md`
 - `.github/workflows/ci.yml`
 - `.github/workflows/release.yml`
 - `electron/types.ts`
@@ -81,6 +90,9 @@ for size in [48, 64, 128, 256, 512]:
 - `src/types/desktop.ts`
 - `src/SpecForgeStudio.tsx`
 - `src/__tests__/pathSecurity.test.ts`
+- `src/__tests__/electronMainSecurity.test.ts`
+- `src/__tests__/accessibilityContracts.test.tsx`
+- `src/__tests__/artifactIntegrity.test.tsx`
 - `src/__tests__/SpecForgeStudio.test.tsx`
 - `scripts/launch-ubuntu.sh`
 - `scripts/install-desktop-entry.sh`
@@ -95,7 +107,7 @@ for size in [48, 64, 128, 256, 512]:
 ~~~~~json
 {
   "name": "specforge-studio",
-  "version": "1.0.2",
+  "version": "1.2.1",
   "description": "SpecForge Studio — AI Coding Agent Prompt & Context Architect for Ubuntu Desktop",
   "homepage": "https://github.com/defiqantcoder/specforge-studio",
   "repository": {
@@ -135,6 +147,7 @@ for size in [48, 64, 128, 256, 512]:
     "electron": "^45.2.3",
     "electron-builder": "^26.0.12",
     "jsdom": "^26.1.0",
+    "marked": "^18.2.0",
     "tailwindcss": "^4.1.5",
     "typescript": "^5.8.3",
     "vite": "^6.3.4",
@@ -327,173 +340,346 @@ SOFTWARE.
 ### `README.md`
 
 ~~~~~markdown
-# SpecForge Studio (Ubuntu 24.04 Desktop App)
+# SpecForge Studio
 
-SpecForge Studio is an offline-first Electron + React + TypeScript desktop application for **Ubuntu 24.04 LTS** that turns plain-English feature ideas into Spec-Driven Development (SDD) artifacts, 5-section task prompts, `AGENTS.md`, GitHub Copilot instructions/agents, Google Antigravity rules/skills, Google Jules VM setup scripts, and EARS vertical-slice plans.
+[![CI Checks & Smoke Test](https://github.com/defiqantcoder/SpecForge-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/defiqantcoder/SpecForge-Studio/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/defiqantcoder/SpecForge-Studio)](https://github.com/defiqantcoder/SpecForge-Studio/releases/latest)
+[![Platform](https://img.shields.io/badge/Ubuntu-24.04%20LTS-E95420?logo=ubuntu&logoColor=white)](https://github.com/defiqantcoder/SpecForge-Studio/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Desktop Features
+**SpecForge Studio** is an offline-first desktop application for **Ubuntu 24.04 LTS** that turns plain-English ideas into structured, production-ready instructions and configuration files for AI coding agents (**Google Antigravity**, **GitHub Copilot**, and **Google Jules**).
 
-- **100% Offline Prompt & Spec Architect**: Works out of the box with presets, EARS builders, vertical-slice planners, and live token/size diagnostics.
-- **1-Click Export to Repository Folder**: Write all 14 generated files (`AGENTS.md`, `TASK_PROMPT.md`, `.agents/...`, `.github/...`, `.specify/...`, `specs/...`, `bootstrap-agy.sh`, `jules-setup.sh`) directly into any local code repository via Ubuntu's native folder picker.
-- **Local Blueprint Storage**: Automatically persists your active draft and lets you save, load, tag, import, and export `.specforge.json` blueprints in `~/.config/SpecForge Studio/blueprints/`.
-- **Optional Gemini AI Integration**: Configure a Gemini API key in **AI Key** settings (encrypted via OS `safeStorage` when available, or via `GEMINI_API_KEY`) to enable **AI Magic Auto-Architect** and **`/grill-me`** Socratic interviews.
-- **Hardened Electron Architecture**: Runs with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, strict CSP headers, and path-traversal validation on every file export.
+---
 
-## Installing on Ubuntu 24.04
+## Table of Contents
 
-Download the latest binaries from the [GitHub Releases](https://github.com/defiqantcoder/specforge-studio/releases) page, or build them locally:
+- [Features](#features)
+- [Installation (Ubuntu 24.04)](#installation-ubuntu-2404)
+- [How to Use](#how-to-use)
+- [Generated Files](#generated-files)
+- [Security & Architecture](#security--architecture)
+- [Development & Testing](#development--testing)
+- [Project Structure](#project-structure)
+- [License](#license)
 
-1. **Debian / Ubuntu `.deb` Package (Recommended)**:
-   ```bash
-   sudo apt install ./release/specforge-studio_1.0.2_amd64.deb
-   ```
-2. **Portable AppImage**:
-   ```bash
-   chmod +x ./release/"SpecForge Studio-1.0.2.AppImage"
-   ./release/"SpecForge Studio-1.0.2.AppImage" --no-sandbox
-   ```
-   *(Note: `--no-sandbox` is required for unprivileged AppImage/unpacked binaries on Ubuntu 24.04 due to `kernel.apparmor_restrict_unprivileged_userns=1`.)*
-3. **Unpacked Binary / Launcher Script**:
-   ```bash
-   ./scripts/launch-ubuntu.sh
-   ```
-4. **Add to Ubuntu Application Launcher (no sudo required)**:
-   ```bash
-   ./scripts/install-desktop-entry.sh
-   ```
+---
 
-## Development & Build Scripts
+## Features
+
+- **Simple Mode (No-Code) & Pro Mode (All 14 Files)**:
+  - **Simple Mode** presents 2 guided tabs (`1. Describe Your App` and `2. How to Use Your Files`), plain-English visual picker cards (app platform, AI tool, execution style), a decluttered 3-file preview dock, and a **Next Step Action Box** for instant copy-paste or 1-click folder export.
+  - **Pro Mode** unlocks all 6 editor tabs: 5-Section Task Prompt Builder (primacy/recency contract), 10-Section `AGENTS.md`, Copilot/Antigravity/Jules configs, EARS requirements, vertical-slice task planners, and live token/byte-limit diagnostics.
+- **Offline Smart-Template Fallback (No API Key Required)**:
+  - Works 100% offline out of the box—clicking **Turn My Idea Into AI Instructions** populates `TASK_PROMPT.md`, `AGENTS.md`, and `spec.md` directly from your plain-English idea even without a Gemini API key.
+- **Optional Gemini AI Integration**:
+  - Add a Gemini API key in **AI Key** settings (encrypted locally via OS `safeStorage` when available, or via `GEMINI_API_KEY`) to enable full **AI Magic Auto-Architect** synthesis and live **`/grill-me`** Socratic ambiguity interviews.
+- **1-Click Export to Repository Folder**:
+  - Writes all 14 generated files (including executable `.sh` setup scripts) directly into any project folder on disk via Ubuntu's native folder picker.
+- **Local Blueprint Storage & Auto-Save**:
+  - Automatically persists your active draft and saves/loads/tags/imports/exports portable `.specforge.json` blueprints in `~/.config/SpecForge Studio/blueprints/`.
+
+---
+
+## Installation (Ubuntu 24.04)
+
+Download the latest installers from the [GitHub Releases](https://github.com/defiqantcoder/SpecForge-Studio/releases/latest) page:
+
+### Option 1: Debian / Ubuntu `.deb` Package (Recommended)
 
 ```bash
-# Install dependencies
-npm install
-
-# Run unit & component tests
-npm test
-
-# Typecheck frontend + Electron main/preload
-npm run typecheck
-
-# Launch in Electron dev mode (Vite HMR + Electron)
-npm run electron:dev
-
-# Launch built desktop app directly
-npm run electron:start
-
-# Build Ubuntu .deb, .AppImage, and linux-unpacked binaries into ./release/
-npm run electron:build
+sudo apt install ./specforge-studio_1.0.2_amd64.deb
 ```
+
+Once installed, launch **SpecForge Studio** from the Ubuntu Applications menu or run `specforge-studio`.
+
+### Option 2: Portable AppImage
+
+```bash
+chmod +x ./SpecForge.Studio-1.0.2.AppImage
+./SpecForge.Studio-1.0.2.AppImage --no-sandbox
+```
+
+> **Ubuntu 24.04 Note:** Ubuntu 24.04 enables `kernel.apparmor_restrict_unprivileged_userns=1` by default, so unprivileged AppImage and unpacked Electron launches require `--no-sandbox`. The `.deb` package installs `chrome-sandbox` with standard permissions and runs without flags.
+
+### Option 3: Build & Run from Source
+
+```bash
+git clone https://github.com/defiqantcoder/SpecForge-Studio.git
+cd SpecForge-Studio
+npm install
+npm run electron:build
+
+# Launch immediately
+./scripts/launch-ubuntu.sh
+
+# Optional: add to Ubuntu Applications menu without sudo
+./scripts/install-desktop-entry.sh
+```
+
+---
+
+## How to Use
+
+### Simple Mode (Recommended for Beginners)
+
+1. **Describe Your App**: Enter what you want to build and who will use it in everyday language.
+2. **Pick Your Setup**: Click the visual cards for your app type (**Website**, **Phone App**, or **Computer App**), target AI tool (**Google Antigravity**, **GitHub Copilot**, or **Google Jules**), and workflow style (**Step-by-Step** or **Background**).
+3. **Generate Instructions**:
+   - Click **✨ Step 1: Turn My Idea Into AI Instructions** (uses Gemini if configured, or Offline Smart Templates automatically).
+   - *(Optional)* Click **❓ Step 2: Check My Idea for Missing Details (3 Quick Questions)** to resolve permission, offline, and error-recovery edge cases.
+4. **Use Your Output** from the **Next Step Action Box** on the right:
+   - **Option A (Easiest):** Click **📋 Copy Prompt to Paste into AI Chat** and paste directly into Antigravity, Copilot Chat, or Jules.
+   - **Option B (Full Repo Setup):** Click **📁 Put All Files Into My Project Folder** and choose your project directory to write all 14 files automatically.
+
+### Pro Mode
+
+Click **Simple Mode (No-Code)** in the top bar to switch to **Pro Mode (All 14 Files)** and customize every section:
+- **2. Task Prompt Builder**: Edit role persona, observable outcomes, architectural boundary invariants, ordered steps, 6 explicit UI states, and verification commands.
+- **3. AGENTS.md**: Configure persistent repository structure, commands, testing, security, and database rules (including monorepo nested `AGENTS.md`).
+- **4. Copilot, Antigravity & Jules Files**: Fine-tune `.agents/rules/*.md` (24KB limit checked), `SKILL.md`, `.github/instructions/*.instructions.md`, `.github/agents/*.agent.md`, and cloud VM setup scripts.
+- **5. Spec & Task Slices**: Author tech-agnostic EARS (`When ... shall ...`) criteria and `[HITL]` / `[AFK]` vertical-slice tasks.
+
+---
+
+## Generated Files
+
+All 14 files are generated live in memory and written cleanly on **Export to Repo**:
+
+| File Path | Purpose |
+| :--- | :--- |
+| `TASK_PROMPT.md` | 5-section task prompt with primacy/recency anchors |
+| `AGENTS.md` | 10-section repository contract read by coding agents |
+| `<subproject>/AGENTS.md` | Nested monorepo `AGENTS.md` overrides |
+| `bootstrap-agy.sh` | 1-click Antigravity workspace initialization script |
+| `.agents/rules/<name>.md` | Antigravity always-on / glob architectural rules |
+| `.agents/skills/<name>/SKILL.md` | Antigravity reusable verification skill |
+| `.github/copilot-instructions.md` | Repository-wide GitHub Copilot instructions |
+| `.github/instructions/<name>.instructions.md` | Path-scoped Copilot instructions |
+| `.github/agents/<name>.agent.md` | Custom GitHub Copilot planner/implementer agent |
+| `.github/workflows/copilot-setup-steps.yml` | Copilot Cloud Agent VM environment setup |
+| `jules-setup.sh` | Google Jules VM snapshot setup script |
+| `.specify/memory/constitution.md` | Non-negotiable Spec-Driven Development principles |
+| `specs/001-feature/spec.md` | EARS (`When ... shall ...`) functional specification |
+| `specs/001-feature/tasks.md` | End-to-end vertical-slice implementation plan |
+
+---
+
+## Security & Architecture
+
+SpecForge Studio follows strict 3-tier Electron isolation:
+
+- **Hardened `BrowserWindow`** ([`electron/main.ts`](electron/main.ts)): `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`, strict CSP in [`index.html`](index.html), URL parsing on `setWindowOpenHandler`/`will-navigate`, and sender frame validation (`assertTrustedIpcSender`) on every IPC handler.
+- **Narrow Preload Bridge** ([`electron/preload.ts`](electron/preload.ts)): Exposes only typed domain methods on `window.desktopAPI` via `contextBridge`.
+- **Path-Traversal Guard** ([`electron/pathSecurity.ts`](electron/pathSecurity.ts)): `resolveSafeChildPath` validates every relative export path and rejects `..` traversal, absolute paths, null bytes, and root-equivalent `.` writes.
+- **Encrypted Key Storage**: Gemini API keys are stored via Electron `safeStorage` and executed in the Main process.
+
+---
+
+## Development & Testing
+
+**Prerequisites:** Node.js `>= 22.12` (recommended for Electron 45) and npm `>= 10`.
+
+```bash
+npm install              # Install dependencies
+npm run typecheck        # Typecheck frontend + Electron main/preload
+npm test                 # Run Vitest unit & React Testing Library suite
+npm run build            # Build Vite production frontend
+npm run electron:compile # Compile Electron TypeScript
+npm run electron:dev     # Run Vite HMR + Electron in dev mode
+npm run electron:start   # Build and launch Electron locally
+npm run electron:build   # Package Ubuntu .deb, .AppImage, and linux-unpacked
+npm audit                # Verify 0 known dependency vulnerabilities
+```
+
+---
 
 ## Project Structure
 
-- `electron/main.ts` — Electron main process, native Ubuntu dialogs, local blueprint storage, safeStorage Gemini key settings, and IPC handlers.
-- `electron/preload.ts` — Strict `contextBridge` API (`window.desktopAPI`).
-- `electron/pathSecurity.ts` — Path traversal protection & blueprint ID sanitization.
-- `src/SpecForgeStudio.tsx` — React 19 + Tailwind CSS v4 SpecForge Studio UI.
-- `build/` — Vector and PNG application icons (`48x48` through `512x512`).
-- `scripts/` — Ubuntu 24.04 launcher and `.desktop` entry installer.
+```text
+├── electron/
+│   ├── main.ts            # Electron Main process, dialogs, blueprints, safeStorage, IPC
+│   ├── preload.ts         # contextBridge window.desktopAPI exposure
+│   ├── pathSecurity.ts    # Path traversal protection & blueprint ID sanitization
+│   └── types.ts           # Shared TypeScript IPC contract
+├── src/
+│   ├── SpecForgeStudio.tsx
+│   ├── main.tsx
+│   ├── index.css
+│   ├── types/desktop.ts
+│   └── __tests__/
+│       ├── pathSecurity.test.ts
+│       └── SpecForgeStudio.test.tsx
+├── build/                 # SVG + 48x48..512x512 PNG application icons
+├── scripts/
+│   ├── launch-ubuntu.sh
+│   └── install-desktop-entry.sh
+└── .github/workflows/
+    ├── ci.yml             # PR/push typecheck, tests, .deb check & Xvfb smoke test
+    └── release.yml        # Tag-triggered Ubuntu .deb & AppImage build
+```
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
+~~~~~
+
+### `SECURITY.md`
+
+~~~~~markdown
+# Security Policy
+
+## Security Model & Architecture
+
+SpecForge Studio is built with an offline-first architecture designed to maximize user privacy and security on Ubuntu environments.
+
+We adhere to a strict 3-tier Electron isolation model:
+
+1.  **Hardened `BrowserWindow` (`electron/main.ts`)**:
+    *   `contextIsolation: true`: Ensures scripts running in the renderer process do not have access to the Node.js environment or Electron's internal APIs.
+    *   `nodeIntegration: false`: Prevents the renderer process from using Node.js features directly.
+
+
+    *   `sandbox: true`: Requests the Chromium renderer sandbox, but does not guarantee it is enabled. `configureLinuxSandbox` in `electron/main.ts` adds `--no-sandbox` for Linux AppImage launches, when AppArmor restricts unprivileged user namespaces without a valid root-owned setuid sandbox, or if sandbox detection throws. The `npm run electron:dev` and `npm run electron:start` scripts also pass `--no-sandbox`, as do `scripts/launch-ubuntu.sh` and desktop entries generated by `scripts/install-desktop-entry.sh`. These launch setups disable the Chromium sandbox.
+
+    *   Strict Content Security Policy (CSP) enforcement.
+    *   URL parsing and validation on `setWindowOpenHandler` and `will-navigate`.
+    *   Sender frame validation (`assertTrustedIpcSender`) on every IPC handler to prevent unauthorized IPC messages.
+2.  **Narrow Preload Bridge (`electron/preload.ts`)**:
+    *   Exposes only specific, typed domain methods via `window.desktopAPI` using `contextBridge`.
+3.  **Path-Traversal Guard (`electron/pathSecurity.ts`)**:
+
+
+    *   `resolveSafeChildPath` validates relative export paths lexically, rejecting paths that resolve outside the selected repository, absolute paths, null bytes, and root-equivalent `.` writes.
+    *   These checks do not resolve symlinks. Writes through symlinks pointing outside the repository can escape it, so strict filesystem confinement is not guaranteed.
+
+
+## Data Storage & API Keys
+
+*   **Offline-First**: By default, no network connection is required. Instructions and specifications are generated using offline smart templates.
+
+
+*   **API Key Storage**: For the optional Gemini AI integration, `writeStoredGeminiKey` encrypts API keys via Electron's `safeStorage` only when `safeStorage.isEncryptionAvailable()` returns true. Otherwise, it stores the key unencrypted as `geminiKeyPlain` in `settings.json` under Electron's user data directory. The file is created with mode `0600` to restrict access to its owner; file permissions do not encrypt its contents. Operations using these keys are executed solely within the isolated Main process.
+
+
+## Reporting a Vulnerability
+
+If you discover a security vulnerability in SpecForge Studio, please **do not** report it via public GitHub issues.
+
+Instead, please send an email to `starwarshellyeah69@pm.me` with the subject `[SECURITY] Vulnerability Report`. We aim to review and respond to all vulnerability reports within 48 hours. Please include detailed steps to reproduce the issue.
+~~~~~
+
+### `CONTRIBUTING.md`
+
+~~~~~markdown
+# Contributing to SpecForge Studio
+
+Thank you for your interest in contributing to SpecForge Studio! We appreciate your help in maintaining this offline-first desktop application.
+
+## Local Development Setup
+
+To set up the project locally on your Ubuntu 24.04 environment, please follow these steps.
+
+**Prerequisites:** Node.js `>= 22.12` and npm `>= 10`.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/defiqantcoder/SpecForge-Studio.git
+    cd SpecForge-Studio
+    ```
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+
+3.  **Choose one development workflow:**
+
+    For frontend-only development, start the Vite dev server:
+    ```bash
+    npm run dev
+    ```
+
+    Alternatively, to run the desktop application, use:
+    ```bash
+    npm run electron:dev
+    ```
+    `npm run electron:dev` starts its own Vite server with Hot Module Replacement (HMR) and launches Electron. Do not run both workflows together.
+
+
+### Other Helpful Commands
+
+*   `npm run build`: Build the Vite production frontend.
+*   `npm run electron:compile`: Compile the Electron TypeScript code.
+*   `npm run electron:start`: Build the frontend, compile Electron, and launch the app locally.
+*   `npm run electron:build`: Package the Ubuntu `.deb`, `.AppImage`, and `linux-unpacked` builds.
+
+## Verification Commands
+
+Before submitting a Pull Request, please ensure all checks pass by running the following commands:
+
+```bash
+npm run typecheck
+npm test
+```
+
+This verifies the TypeScript types and runs the Vitest unit & React Testing Library suite. Your PR should not impact the build, meaning both commands must complete successfully without errors.
+
+## Pull Request Guidelines
+
+SpecForge Studio aims to remain a focused, efficient tool for generating AI coding agent instructions. To maintain this focus, we adhere to strict **no-feature-creep** guidelines:
+
+1.  **Scope**: Ensure your PR directly addresses an existing issue or a clear, necessary bug fix. We are highly resistant to adding new features that expand the scope of the application beyond its core objective.
+2.  **Architecture**: Maintain the strict 3-tier Electron isolation model (`contextIsolation`, `nodeIntegration`, `sandbox`) and offline-first design.
+3.  **Verification**: As mentioned above, `npm run typecheck && npm test` must pass. Ensure any new logic is appropriately tested.
+4.  **Simplicity**: Keep changes as simple and isolated as possible.
+
+We look forward to your contributions!
 ~~~~~
 
 ### `.github/workflows/ci.yml`
 
 ~~~~~yaml
-name: CI Checks & Smoke Test
+name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
-  fast-checks:
-    name: Typecheck, Unit Tests, and Compile
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Setup Node.js
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
+      - name: Run typecheck
         run: npm run typecheck
 
-      - name: Test
+      - name: Run tests
         run: npm test
 
-      - name: Compile
-        run: npm run build && npm run electron:compile
-
-  desktop-smoke-test:
-    name: Desktop Packaging & Headless Smoke Test
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Electron App (.deb + unpacked)
-        run: npm run build && npm run electron:compile && npx electron-builder --linux deb --publish never
-
-      - name: Verify .deb package
-        run: |
-          DEB_FILE=$(ls release/*.deb | head -n 1)
-          if [ -z "$DEB_FILE" ]; then
-            echo "No .deb file found in release/"
-            exit 1
-          fi
-          echo "Inspecting $DEB_FILE..."
-          dpkg-deb -I "$DEB_FILE"
-          dpkg-deb -c "$DEB_FILE"
-
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
-
-      - name: Headless Smoke Test
-        run: |
-          xvfb-run -a ./release/linux-unpacked/specforge-studio --no-sandbox > smoke-test.log 2>&1 &
-          PID=$!
-          echo "Started process $PID"
-          sleep 5
-          if ! kill -0 $PID 2>/dev/null; then
-            echo "Process exited prematurely. Log output:"
-            cat smoke-test.log
-            exit 1
-          fi
-          kill $PID
-          wait $PID 2>/dev/null || true
-
-          if grep -i "fatal" smoke-test.log; then
-            echo "Fatal error found in log output:"
-            cat smoke-test.log
-            exit 1
-          fi
-
-          echo "Smoke test passed."
+      - name: Run build
+        run: npm run build
 ~~~~~
 
 ### `.github/workflows/release.yml`
@@ -1408,12 +1594,15 @@ import {
   FolderUp,
   KeyRound,
   Upload,
-  HardDrive
+  HardDrive,
+  Folder,
+  Bookmark
 } from 'lucide-react';
 import type { DesktopAppInfo, GeminiSettingsInfo, SavedBlueprint } from './types/desktop';
 
 const LOCAL_DRAFT_STORAGE_KEY = 'specforge-studio:draft-v1';
 const LOCAL_BLUEPRINTS_STORAGE_KEY = 'specforge-studio:blueprints-v1';
+const LOCAL_PRESETS_STORAGE_KEY = 'specforge_saved_presets_v1';
 
 // ============================================================================
 // DUMMY-PROOF HELPER CHIPS & FILE PLACEMENT INSTRUCTIONS
@@ -1445,6 +1634,11 @@ const QUICK_FILL_CHIPS = {
 };
 
 const FILE_USAGE_GUIDE = {
+  'FULL_BLUEPRINT_REPORT.md': {
+    whatIsIt: 'A complete, single-file master blueprint combining your project overview, task prompt, AGENTS.md, constitution, EARS spec, and vertical slices.',
+    whereItGoes: 'Paste directly into a GitHub Issue, Pull Request description, Notion doc, or share with teammates for architectural review.',
+    BeginnerTip: 'Use this when you want to share your entire AI specification in one clean, readable document!'
+  },
   'TASK_PROMPT.md': {
     whatIsIt: 'Your main 5-Section Task Prompt with high-priority instructions at the top and bottom.',
     whereItGoes: 'Copy and paste this directly into the chat box of Google Antigravity, GitHub Copilot Chat, or a Google Jules task / GitHub Issue.',
@@ -1795,19 +1989,508 @@ async function callGeminiStructured(
   );
 }
 
+type ViewMode = 'simple' | 'intermediate' | 'pro';
+
 const SIMPLE_ESSENTIAL_FILES: Array<{ key: string; label: string }> = [
   { key: 'TASK_PROMPT.md', label: '📋 1. Copy-Paste AI Prompt' },
   { key: 'AGENTS.md', label: '🤖 2. Project Rules (AGENTS.md)' },
   { key: 'bootstrap-agy.sh', label: '⚡ 3. 1-Click Auto-Setup' }
 ];
 
+const INTERMEDIATE_CORE_FILES: Array<{ key: string; label: string; subtitle: string }> = [
+  { key: 'TASK_PROMPT.md', label: 'TASK_PROMPT.md', subtitle: 'Your main AI task prompt' },
+  { key: 'AGENTS.md', label: 'AGENTS.md', subtitle: 'Permanent project rules' },
+  { key: 'specs/001-feature/spec.md', label: 'spec.md', subtitle: 'Feature requirements (EARS)' },
+  { key: 'specs/001-feature/tasks.md', label: 'tasks.md', subtitle: 'Step-by-step feature slices' },
+  {
+    key: '.specify/memory/constitution.md',
+    label: 'constitution.md',
+    subtitle: 'Core non-negotiable laws'
+  },
+  { key: 'bootstrap-agy.sh', label: 'bootstrap-agy.sh', subtitle: '1-click Antigravity setup' }
+];
+
+interface IntermediateRulePreset {
+  id: string;
+  label: string;
+  helper: string;
+  targetField: 'stateAndDataRules' | 'runtimeAndSecurityLimits';
+  technicalRule: string;
+}
+
+const INTERMEDIATE_RULE_PRESETS: IntermediateRulePreset[] = [
+  {
+    id: 'server_client_split',
+    label: 'Keep data fetching separate from visual design (Server/Client split)',
+    helper: 'Keeps data queries out of interactive UI leaves so state stays predictable and fast.',
+    targetField: 'stateAndDataRules',
+    technicalRule:
+      "- Separate server data fetching from client UI rendering: keep queries/mutations in server or service boundaries and restrict 'use client' strictly to leaf interactive components."
+  },
+  {
+    id: 'require_passing_tests',
+    label: 'Require automated tests to pass before finishing tasks',
+    helper: 'Prevents the AI from marking a task done until typecheck and tests succeed.',
+    targetField: 'runtimeAndSecurityLimits',
+    technicalRule:
+      '- Gate every task completion on passing typecheck, lint, and scoped unit/integration tests without skipping or weakening assertions.'
+  },
+  {
+    id: 'path_traversal_protection',
+    label: 'Prevent file path hacks or security holes (Path Traversal protection)',
+    helper: 'Enforces safe root boundary checks against ../ path escapes and untrusted inputs.',
+    targetField: 'runtimeAndSecurityLimits',
+    technicalRule:
+      '- Enforce strict path canonicalization and root-boundary validation on every filesystem or IPC input to prevent path traversal (../) and injection vulnerabilities.'
+  }
+];
+
+function deriveTracerBulletLayers(title: string, platform: string): string {
+  const boundary =
+    platform === 'desktop'
+      ? 'Typed IPC Bridge'
+      : platform === 'mobile'
+        ? 'Native Module Boundary'
+        : 'Validated API Boundary';
+  const normalized = title.trim().toLowerCase();
+  const dataLayer = normalized.includes('auth') ? 'Auth Schema' : 'Data Schema';
+  return `${dataLayer} + Domain Service + ${boundary} + UI Slice + Automated Test`;
+}
+
+type ExpandableFieldKey = 'plainIdea' | 'objective' | 'observableOutcome';
+
+function buildOfflineExpandedBullets(
+  fieldKey: ExpandableFieldKey,
+  currentValue: string,
+  platform: string,
+  userPersona: string
+): string {
+  const persona = (userPersona || 'target users').trim();
+  const platformLabel =
+    platform === 'desktop' ? 'desktop app' : platform === 'mobile' ? 'mobile app' : 'web app';
+  if (fieldKey === 'objective') {
+    return `(Includes input validation, loading/error states, and automated tests for our ${platformLabel}.)`;
+  }
+  if (fieldKey === 'observableOutcome') {
+    return `(Verified with instant visual feedback, safe error recovery, and accessible controls for ${persona}.)`;
+  }
+  const topicHint = currentValue ? 'for this workflow' : `for the ${platformLabel}`;
+  return [
+    `- Provide clear loading, empty, and error feedback states ${topicHint}`,
+    `- Validate all user inputs and keep actions responsive for ${persona}`,
+    `- Include automated verification checks so core flows stay reliable`
+  ].join('\n');
+}
+
+function ExpandedTextHighlight({
+  fieldKey,
+  text,
+  onClear
+}: {
+  fieldKey: ExpandableFieldKey;
+  text: string;
+  onClear: () => void;
+}) {
+  return (
+    <div
+      data-testid={`expanded-highlight-${fieldKey}`}
+      className="mt-2 bg-amber-500/15 border-l-2 border-amber-400 px-2.5 py-2 rounded text-xs text-amber-100 space-y-1.5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold text-amber-300 flex items-center gap-1">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>Newly Expanded Options (Added to Input Above)</span>
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onClear}
+            className="px-2 py-0.5 rounded bg-amber-500/25 hover:bg-amber-500/35 border border-amber-400/50 text-[11px] font-semibold text-amber-100 transition"
+          >
+            Accept All
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="px-2 py-0.5 rounded bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-[11px] text-slate-300 transition"
+          >
+            Clear Highlight
+          </button>
+        </div>
+      </div>
+      <div className="bg-amber-500/15 border-l-2 border-amber-400 px-1 rounded whitespace-pre-wrap text-[11px] text-amber-50">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+export type AutoFillSectionId =
+  | 'role_objective'
+  | 'context_stack'
+  | 'constraints'
+  | 'task_steps'
+  | 'verification'
+  | 'agentsmd'
+  | 'sdd_constitution'
+  | 'sdd_spec'
+  | 'sdd_tasks';
+
+/** Hover tooltip with info icon that explains a form setting in plain English. */
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span
+      title={text}
+      className="group relative inline-flex items-center cursor-help text-slate-400 hover:text-indigo-300 transition shrink-0"
+    >
+      <Info className="w-3.5 h-3.5" aria-hidden="true" />
+      <span
+        role="tooltip"
+        aria-hidden="true"
+        className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-56 rounded-lg bg-slate-950 border border-indigo-500/40 px-2.5 py-1.5 text-[11px] font-normal normal-case tracking-normal text-slate-200 shadow-xl leading-snug"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/** Context-aware section-level AI Auto-Fill button. */
+function SectionAutoFillButton({
+  sectionId,
+  activeSection,
+  onAutoFill
+}: {
+  sectionId: AutoFillSectionId;
+  activeSection: AutoFillSectionId | null;
+  onAutoFill: (id: AutoFillSectionId) => void;
+}) {
+  const isLoading = activeSection === sectionId;
+  return (
+    <button
+      type="button"
+      data-testid={`autofill-section-btn-${sectionId}`}
+      disabled={isLoading}
+      onClick={() => onAutoFill(sectionId)}
+      className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs font-medium text-indigo-200 flex items-center gap-1 disabled:opacity-50 transition"
+    >
+      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+      <span>{isLoading ? 'Auto-Filling...' : '✨ Auto-Fill Section'}</span>
+    </button>
+  );
+}
+
+/** Soft amber highlight card for reviewing section-level AI auto-fill suggestions. */
+function SectionAutoFillHighlight({
+  sectionId,
+  text,
+  onClear
+}: {
+  sectionId: AutoFillSectionId;
+  text: string;
+  onClear: () => void;
+}) {
+  return (
+    <div
+      data-testid={`section-autofill-highlight-${sectionId}`}
+      className="rounded-xl bg-amber-500/10 border border-amber-400/40 p-2.5 text-xs text-amber-100 space-y-1.5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold text-amber-300 flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>AI Section Auto-Fill Applied (highlighted for review)</span>
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onClear}
+            className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-[11px] font-semibold text-amber-200 transition"
+          >
+            Accept All
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="px-2 py-0.5 rounded bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-[11px] text-slate-300 transition"
+          >
+            Clear Highlight
+          </button>
+        </div>
+      </div>
+      <div className="bg-amber-500/15 border-l-2 border-amber-400 px-2 py-1 rounded whitespace-pre-wrap text-[11px] text-amber-50">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/** Deterministic offline section-level smart auto-fill generator tailored to the user's main idea. */
+export function buildOfflineSectionPatch(
+  sectionId: AutoFillSectionId,
+  plainIdea: string,
+  userPersona: string,
+  platform: string,
+  currentForm: Record<string, any>
+): { patch: Record<string, any>; summary: string } {
+  const ideaSnippet = (plainIdea || 'Build a reliable, user-friendly application workflow')
+    .trim()
+    .split('\n')[0]
+    .slice(0, 140);
+  const personaSnippet = (userPersona || 'end users and team members').trim();
+
+  switch (sectionId) {
+    case 'role_objective': {
+      const rolePersona =
+        platform === 'mobile'
+          ? 'Senior React Native (New Architecture) & Offline-First Mobile Architect'
+          : platform === 'desktop'
+            ? 'Senior Rust Systems & Tauri v2 / Electron Security Architect'
+            : 'Senior Full-Stack Next.js 15 & React 19 Principal Engineer';
+      const roleFocus =
+        platform === 'mobile'
+          ? '60fps native navigation, optimistic offline queues, and strict schema validation'
+          : platform === 'desktop'
+            ? 'Least-privilege IPC capabilities, path validation, and local SQLite persistence'
+            : 'React 19 Server/Client boundaries, URL-synced filters, and accessible keyboard UX';
+      const objective = `Architect and ship: ${ideaSnippet}`;
+      const observableOutcome = `So that ${personaSnippet} can complete their workflow with instant visual feedback, clear validation states, and zero unhandled runtime errors.`;
+      return {
+        patch: { rolePersona, roleFocus, objective, observableOutcome },
+        summary: `Persona: ${rolePersona}\nFocus: ${roleFocus}\nObjective: ${objective}\nOutcome: ${observableOutcome}`
+      };
+    }
+    case 'context_stack': {
+      const pinnedStack =
+        platform === 'mobile'
+          ? 'React Native 0.76+ (Fabric/TurboModules), TypeScript 5.8, Expo Router v4, Zod, Vitest'
+          : platform === 'desktop'
+            ? 'Rust 2024 / Tauri v2 (or Electron 35+), React 19, TypeScript 5.8, Tailwind CSS v4, Vitest'
+            : 'Next.js 15 (App Router), React 19, TypeScript 5.8 (strict), Tailwind CSS v4, Zod, Vitest';
+      const unapprovedLibs =
+        'moment.js, untyped fetch wrappers, inline styles, unvalidated raw SQL strings';
+      const visualContext = `Clean, high-contrast workspace tailored for ${personaSnippet} with keyboard shortcuts and responsive layout.`;
+      return {
+        patch: { pinnedStack, unapprovedLibs, visualContext },
+        summary: `Pinned Stack: ${pinnedStack}\nRejected Patterns: ${unapprovedLibs}\nVisual Context: ${visualContext}`
+      };
+    }
+    case 'constraints': {
+      const stateAndDataRules = `- Validate all external inputs at module boundaries using strict schemas for: ${ideaSnippet}.\n- Keep server/persistence state separate from ephemeral UI state; use URL or durable local storage for user filters.`;
+      const runtimeAndSecurityLimits = `- EnforceWCAG 2.2 AA keyboard navigation, focus rings, and explicit loading/error states for ${personaSnippet}.\n- Sanitize all file paths and user payloads; never expose secrets or internal stack traces in the UI.`;
+      return {
+        patch: { stateAndDataRules, runtimeAndSecurityLimits },
+        summary: `${stateAndDataRules}\n${runtimeAndSecurityLimits}`
+      };
+    }
+    case 'task_steps': {
+      const taskSteps = [
+        `1. Define strict TypeScript interfaces and validation schemas for: ${ideaSnippet}`,
+        `2. Implement the core data & state layer with optimistic feedback and deterministic error recovery`,
+        `3. Build the accessible UI component tree for ${personaSnippet} covering Loading, Empty, Error, Offline, Disabled, and Success states`,
+        `4. Add unit and integration tests verifying happy-path and edge-case behavior`
+      ];
+      return {
+        patch: { taskSteps },
+        summary: taskSteps.join('\n')
+      };
+    }
+    case 'verification': {
+      const verificationCommands = 'npm run typecheck && npm run lint && npm test -- --run';
+      const deliverableFormat =
+        '1. Concise architectural summary\n2. Production-ready implementation diffs\n3. Verification test suite output';
+      return {
+        patch: { verificationCommands, deliverableFormat },
+        summary: `Verification Commands: ${verificationCommands}\nDeliverable Contract:\n${deliverableFormat}`
+      };
+    }
+    case 'agentsmd': {
+      const agentsTechStack = `- Primary Goal: ${ideaSnippet}\n- Target Users: ${personaSnippet}\n- Stack: TypeScript 5.8 (strict), React 19, Tailwind CSS v4, Vitest`;
+      const agentsCodeStyle = `- Prefer small, pure functions and explicit return types.\n- Enforce accessible roles/labels and deterministic state transitions.\n- Run typecheck and unit tests after every slice.`;
+      return {
+        patch: { agentsTechStack, agentsCodeStyle },
+        summary: `${agentsTechStack}\n${agentsCodeStyle}`
+      };
+    }
+    case 'sdd_constitution': {
+      const sddConstitution = `1. Every vertical slice for "${ideaSnippet}" must ship with automated tests.\n2. All user inputs from ${personaSnippet} must be validated with clear, human-readable error states.\n3. No unapproved dependencies or silent catch blocks are permitted.`;
+      return {
+        patch: { sddConstitution },
+        summary: sddConstitution
+      };
+    }
+    case 'sdd_spec': {
+      const sddSummary = `${ideaSnippet} — designed for ${personaSnippet} with full keyboard accessibility, fast feedback, and resilient error recovery.`;
+      const sddWhy = `Eliminates manual friction and inconsistent state handling for ${personaSnippet}.`;
+      const sddSuccessMetrics = `- 100% of core user flows pass automated verification tests.\n- Zero unhandled runtime errors across Loading, Empty, Error, and Success states.`;
+      return {
+        patch: { sddSummary, sddWhy, sddSuccessMetrics },
+        summary: `Summary: ${sddSummary}\nRationale: ${sddWhy}\nSuccess Metrics:\n${sddSuccessMetrics}`
+      };
+    }
+    case 'sdd_tasks': {
+      const existingSlices = Array.isArray(currentForm.sddSlices) ? currentForm.sddSlices : [];
+      const updatedSlices =
+        existingSlices.length > 0
+          ? existingSlices.map((sl: any, idx: number) =>
+              idx === 0
+                ? {
+                    ...sl,
+                    name: `End-to-End Slice: ${ideaSnippet.slice(0, 55)}`,
+                    test: `Integration test verifying ${personaSnippet} can complete the primary flow and recover from errors`
+                  }
+                : sl
+            )
+          : [
+              {
+                id: 'SLICE-01',
+                mode: 'HITL',
+                name: `End-to-End Slice: ${ideaSnippet.slice(0, 55)}`,
+                schema: 'Core TypeScript domain models & validation schema',
+                api: 'State controller & persistence service handler',
+                ui: 'Accessible UI view with Loading, Empty, Error, and Success states',
+                test: `Integration test verifying ${personaSnippet} can complete the primary flow`
+              }
+            ];
+      return {
+        patch: { sddSlices: updatedSlices },
+        summary: `Updated Slice 1: ${updatedSlices[0].name}\nTest Gate: ${updatedSlices[0].test}`
+      };
+    }
+  }
+}
+
+/** Collapsible, tooltip-friendly plain-language explanation card for Intermediate Mode. */
+function JargonTranslationCard({
+  term,
+  explanation
+}: {
+  term: string;
+  explanation: string;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div
+      title={explanation}
+      className="rounded-xl bg-indigo-950/35 border border-indigo-500/30 px-3 py-2 text-xs text-indigo-100"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-indigo-300 flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <span>Plain-English Guide: {term}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="text-[11px] text-indigo-300 hover:underline shrink-0"
+        >
+          {expanded ? 'Hide' : 'Explain'}
+        </button>
+      </div>
+      {expanded && (
+        <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">{explanation}</p>
+      )}
+    </div>
+  );
+}
+
+const DEFAULT_FORM = {
+  ...PRESETS.web_nextjs,
+  // Platform-specific extra config fields
+  pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
+  desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
+  // Antigravity Rule Config
+  agyRuleName: 'architecture-boundaries',
+  agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
+  agyGlobs: '*.tsx, src/features/**/*.ts',
+  agyRuleDescription:
+    'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
+  // Antigravity Skill Config
+  agySkillName: 'verify-vertical-slice',
+  agySkillDescription:
+    'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
+  // Copilot Path-Specific Instruction Config
+  copilotInstructionName: 'domain-boundaries',
+  copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
+  copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
+  // Copilot Custom Agent Config
+  copilotAgentName: 'implementation-planner',
+  copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
+  // Monorepo Nested AGENTS.md Config
+  enableNestedAgents: true,
+  nestedSubprojectPath: 'apps/mobile',
+  nestedCommandOverrides:
+    'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
+  nestedLocalConstraints:
+    'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
+};
+
+/**
+ * Recursively validates that `value` structurally matches `defaults`.
+ * When `requireAllFields` is true (used for array item schemas like `earsSpecs`),
+ * every key in `defaults` must be present and match its type.
+ */
+function matchesDefaults(value: any, defaults: any, requireAllFields = false): boolean {
+  if (typeof defaults !== 'object' || defaults === null) {
+    return typeof value === typeof defaults;
+  }
+  if (typeof value !== 'object' || value === null) return false;
+  if (Array.isArray(defaults)) {
+    if (!Array.isArray(value)) return false;
+    if (defaults.length === 0) return true;
+    return value.every((item) => matchesDefaults(item, defaults[0], true));
+  }
+  if (Array.isArray(value)) return false;
+
+  for (const key of Object.keys(defaults)) {
+    if (requireAllFields && !(key in value)) {
+      return false;
+    }
+    if (key in value && value[key] !== undefined) {
+      if (!matchesDefaults(value[key], defaults[key], requireAllFields)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Runtime type guard for saved project presets stored in `localStorage`.
+ */
+function isValidSavedPreset(
+  item: any
+): item is { id: string; name: string; projectTitle: string; formState: any; updatedAt: number } {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof item.id === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.projectTitle === 'string' &&
+    typeof item.updatedAt === 'number' &&
+    matchesDefaults(item.formState, DEFAULT_FORM)
+  );
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
-  // Simple Mode (dummyProofMode=true) vs Pro Mode (dummyProofMode=false)
-  const [dummyProofMode, setDummyProofMode] = useState(true);
-  // Optional toggle inside Simple Mode dock to peek at all 14 files
+  // 3-way view selector: Simple (No-Code Wizard), Intermediate (Pro-Light), Pro (All 14 Files)
+  const [viewMode, setViewMode] = useState<ViewMode>('simple');
+  const isSimpleMode = viewMode === 'simple';
+  const isIntermediateMode = viewMode === 'intermediate';
+  const isProMode = viewMode === 'pro';
+  const dummyProofMode = isSimpleMode;
+  const showPlainHelpers = !isProMode;
+  // Optional toggle inside Simple/Intermediate dock to peek at all 14 files
   const [showAllSimpleFiles, setShowAllSimpleFiles] = useState(false);
+  // Auto-Expand Options loading & visual highlight state
+  const [expandingField, setExpandingField] = useState<ExpandableFieldKey | null>(null);
+  const [expandedHighlights, setExpandedHighlights] = useState<
+    Partial<Record<ExpandableFieldKey, string>>
+  >({});
+  // Section-level AI Auto-Fill loading & visual highlight state
+  const [autoFillingSection, setAutoFillingSection] = useState<AutoFillSectionId | null>(null);
+  const [sectionHighlights, setSectionHighlights] = useState<
+    Partial<Record<AutoFillSectionId, string>>
+  >({});
   // Mobile view switcher ('editor' | 'preview') for small screens
   const [mobilePane, setMobilePane] = useState('editor');
   // Active preview file in the right-hand artifact dock
@@ -1816,6 +2499,13 @@ export default function SpecForgeStudio() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // Status banner message
   const [statusMessage, setStatusMessage] = useState<{ type: string; text: string } | null>(null);
+  // Collapsible Prompt Readiness Scorecard state
+  const [showScorecard, setShowScorecard] = useState(true);
+  const [pendingScorecardFocus, setPendingScorecardFocus] = useState<{
+    focusId: string;
+    token: number;
+  } | null>(null);
+  const scorecardFocusTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Timeout refs to clean up on unmount or re-trigger
   const statusTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1826,8 +2516,28 @@ export default function SpecForgeStudio() {
     return () => {
       if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      if (scorecardFocusTimerRef.current) clearTimeout(scorecardFocusTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!pendingScorecardFocus) return;
+    const { focusId } = pendingScorecardFocus;
+    const el = document.getElementById(focusId);
+    if (!el) return;
+
+    el.focus();
+    if (typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    el.classList.add('ring-2', 'ring-indigo-500', 'transition-shadow', 'duration-500');
+
+    if (scorecardFocusTimerRef.current) clearTimeout(scorecardFocusTimerRef.current);
+    scorecardFocusTimerRef.current = setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-indigo-500', 'transition-shadow', 'duration-500');
+    }, 2000);
+    setPendingScorecardFocus(null);
+  }, [pendingScorecardFocus, activeTab, viewMode, mobilePane]);
 
   /** Sets statusMessage and clears only if it is still the active message when the timer expires. */
   const setStatusMessageWithTimeout = (msg: { type: string; text: string } | null, duration: number = 4000) => {
@@ -1845,6 +2555,65 @@ export default function SpecForgeStudio() {
   const [desktopInfo, setDesktopInfo] = useState<DesktopAppInfo | null>(null);
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [presetsModalOpen, setPresetsModalOpen] = useState(false);
+  const [savedPresets, setSavedPresets] = useState<
+    Array<{ id: string; name: string; projectTitle: string; formState: any; updatedAt: number }>
+  >([]);
+  const [presetNameInput, setPresetNameInput] = useState('');
+  const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!presetsModalOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = presetsDialogRef.current;
+
+    if (dialog) {
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        dialog.focus();
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setPresetsModalOpen(false);
+      } else if (e.key === 'Tab' && dialog) {
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialog) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+    };
+  }, [presetsModalOpen]);
+
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
     source: 'none'
@@ -1872,47 +2641,16 @@ export default function SpecForgeStudio() {
 
   // Core Form State initialized from saved draft or Web Next.js 15 preset
   const [form, setForm] = useState<any>(() => {
-    const defaultForm = {
-      ...PRESETS.web_nextjs,
-      // Platform-specific extra config fields
-      pointerStyle: '@path', // '@path' (Antigravity / Copilot CLI) or '#file' (VS Code)
-      desktopFramework: 'tauri_v2', // 'tauri_v2' or 'electron'
-      // Antigravity Rule Config
-      agyRuleName: 'architecture-boundaries',
-      agyTrigger: 'always_on', // 'always_on' | 'model_decision' | 'glob' | 'manual'
-      agyGlobs: '*.tsx, src/features/**/*.ts',
-      agyRuleDescription:
-        'Enforces strict UI/Server boundary separation, state placement, and security validation rules.',
-      // Antigravity Skill Config
-      agySkillName: 'verify-vertical-slice',
-      agySkillDescription:
-        'Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete.',
-      // Copilot Path-Specific Instruction Config
-      copilotInstructionName: 'domain-boundaries',
-      copilotApplyTo: 'src/features/**/*.tsx,src/app/**/*.tsx',
-      copilotExcludeAgent: 'none', // 'none' | 'code-review' | 'cloud-agent'
-      // Copilot Custom Agent Config
-      copilotAgentName: 'implementation-planner',
-      copilotAgentRole: 'planner', // 'planner' (read/search only) | 'implementer' (full tools)
-      // Monorepo Nested AGENTS.md Config
-      enableNestedAgents: true,
-      nestedSubprojectPath: 'apps/mobile',
-      nestedCommandOverrides:
-        'Test Package Only: pnpm --filter @app/mobile test\nTypecheck Package: pnpm --filter @app/mobile typecheck',
-      nestedLocalConstraints:
-        'Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.'
-    };
-
     try {
       const savedDraft = localStorage.getItem(LOCAL_DRAFT_STORAGE_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
         if (parsed?.form) {
           return {
-            ...defaultForm,
+            ...DEFAULT_FORM,
             ...parsed.form,
             uiStates: {
-              ...defaultForm.uiStates,
+              ...DEFAULT_FORM.uiStates,
               ...(parsed.form.uiStates || {})
             }
           };
@@ -1922,7 +2660,7 @@ export default function SpecForgeStudio() {
       // ignore malformed draft
     }
 
-    return defaultForm;
+    return DEFAULT_FORM;
   });
 
   // AI Loading & Socratic /grill-me Interview State
@@ -1968,8 +2706,107 @@ export default function SpecForgeStudio() {
     }
   };
 
+  // ============================================================================
+  // SAVED PROJECT PRESETS (LOCAL STORAGE)
+  // ============================================================================
+  const handleSavePreset = () => {
+    const trimmed = presetNameInput.trim() || projectTitle.trim() || 'Untitled Preset';
+    const newPreset = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: trimmed,
+      projectTitle,
+      formState: form,
+      updatedAt: Date.now()
+    };
+    const next = [newPreset, ...savedPresets];
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+      setSavedPresets(next);
+      setPresetNameInput('');
+      setStatusMessageWithTimeout({
+        type: 'success',
+        text: `Saved preset "${trimmed}" to local storage.`
+      });
+    } catch (err: any) {
+      setStatusMessageWithTimeout({
+        type: 'error',
+        text: `Failed to save preset: ${err?.message || err}`
+      });
+    }
+  };
+
+  const handleLoadPreset = (preset: {
+    id: string;
+    name: string;
+    projectTitle: string;
+    formState: any;
+    updatedAt: number;
+  }) => {
+    setProjectTitle(preset.projectTitle || preset.name);
+    setForm((prev: any) => ({
+      ...DEFAULT_FORM,
+      ...prev,
+      ...preset.formState,
+      uiStates: {
+        ...DEFAULT_FORM.uiStates,
+        ...(prev.uiStates || {}),
+        ...(preset.formState?.uiStates || {})
+      }
+    }));
+    setPresetsModalOpen(false);
+    setStatusMessageWithTimeout({
+      type: 'success',
+      text: `Loaded preset "${preset.name}"!`
+    });
+  };
+
+  const handleDeletePreset = (id: string, name: string) => {
+    const next = savedPresets.filter((p) => p.id !== id);
+    try {
+      localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
+      setSavedPresets(next);
+      setStatusMessageWithTimeout({
+        type: 'info',
+        text: `Deleted preset "${name}".`
+      });
+    } catch (err: any) {
+      setStatusMessageWithTimeout({
+        type: 'error',
+        text: `Failed to delete preset: ${err?.message || err}`
+      });
+    }
+  };
+
+  const handleResetToDefaultPreset = () => {
+    setProjectTitle('My Invoice Approval App');
+    setForm({
+      ...DEFAULT_FORM,
+      uiStates: {
+        ...DEFAULT_FORM.uiStates
+      },
+      earsSpecs: [...DEFAULT_FORM.earsSpecs],
+      verticalSlices: [...DEFAULT_FORM.verticalSlices]
+    });
+    setPresetsModalOpen(false);
+    setStatusMessageWithTimeout({
+      type: 'info',
+      text: 'Reset workspace to default blueprint.'
+    });
+  };
+
   useEffect(() => {
     void refreshBlueprints();
+    try {
+      const rawPresets = localStorage.getItem(LOCAL_PRESETS_STORAGE_KEY);
+      if (rawPresets) {
+        const parsed = JSON.parse(rawPresets);
+        if (Array.isArray(parsed)) {
+          setSavedPresets(parsed.filter(isValidSavedPreset));
+        }
+      }
+    } catch {
+      // ignore malformed presets
+    }
     if (window.desktopAPI) {
       window.desktopAPI.getAppInfo().then(setDesktopInfo).catch(console.error);
       window.desktopAPI.getGeminiSettings().then(setGeminiSettings).catch(console.error);
@@ -2215,6 +3052,125 @@ export default function SpecForgeStudio() {
   // ============================================================================
   // AI MAGIC AUTO-ARCHITECT (Transforms plain language into all sections)
   // ============================================================================
+  const clearExpandedHighlight = (fieldKey: ExpandableFieldKey) => {
+    setExpandedHighlights((prev) => {
+      const next = { ...prev };
+      delete next[fieldKey];
+      return next;
+    });
+  };
+
+  const handleAutoExpandField = async (fieldKey: ExpandableFieldKey) => {
+    const currentValue = String(form[fieldKey] || '').trim();
+    setExpandingField(fieldKey);
+
+    try {
+      let addedText = '';
+      const canCallAI = Boolean(window.desktopAPI && geminiSettings.hasKey);
+
+      if (canCallAI) {
+        try {
+          const systemPrompt =
+            'You are a Senior Product & Software Architect. Given a user draft, return 3 concise, plain-language engineering bullets that flesh out edge cases, user feedback states, and validation.';
+          const userQuery = `Field: ${fieldKey}\nPlatform: ${form.platform}\nUsers: ${form.userPersona}\nCurrent Text: ${currentValue}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              bullets: {
+                type: 'ARRAY',
+                items: { type: 'STRING' }
+              }
+            },
+            required: ['bullets']
+          };
+          const res = await callGeminiStructured(systemPrompt, userQuery, schema);
+          if (Array.isArray(res?.bullets) && res.bullets.length > 0) {
+            addedText = res.bullets
+              .map((b: string) => (b.trim().startsWith('-') ? b.trim() : `- ${b.trim()}`))
+              .join('\n');
+          }
+        } catch {
+          // Fall back to deterministic offline expander if Gemini call fails
+        }
+      }
+
+      if (!addedText) {
+        addedText = buildOfflineExpandedBullets(
+          fieldKey,
+          currentValue,
+          form.platform,
+          form.userPersona
+        );
+      }
+
+      const separator = fieldKey === 'plainIdea' ? '\n' : ' ';
+      const nextVal = currentValue ? `${currentValue}${separator}${addedText}` : addedText;
+      updateField(fieldKey, nextVal);
+      setExpandedHighlights((prev) => ({
+        ...prev,
+        [fieldKey]: addedText
+      }));
+    } finally {
+      setExpandingField(null);
+    }
+  };
+
+  const clearSectionHighlight = (sectionId: AutoFillSectionId) => {
+    setSectionHighlights((prev) => {
+      const next = { ...prev };
+      delete next[sectionId];
+      return next;
+    });
+  };
+
+  const handleAutoFillSection = async (sectionId: AutoFillSectionId) => {
+    setAutoFillingSection(sectionId);
+    try {
+      const fallback = buildOfflineSectionPatch(
+        sectionId,
+        form.plainIdea,
+        form.userPersona,
+        form.platform,
+        form
+      );
+      let patch = fallback.patch;
+      let summary = fallback.summary;
+      const canCallAI = Boolean(window.desktopAPI && geminiSettings.hasKey);
+
+      if (canCallAI) {
+        try {
+          const systemPrompt =
+            'You are a Principal Software Architect. Suggest a concise, production-ready summary of updates for the requested specification section based on the user idea.';
+          const userQuery = `Section: ${sectionId}\nIdea: ${form.plainIdea}\nUsers: ${form.userPersona}\nPlatform: ${form.platform}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              summary: { type: 'STRING' }
+            },
+            required: ['summary']
+          };
+          const res = await callGeminiStructured(systemPrompt, userQuery, schema);
+          if (typeof res?.summary === 'string' && res.summary.trim()) {
+            summary = res.summary.trim();
+          }
+        } catch {
+          // Fall back to deterministic offline section auto-fill
+        }
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        ...patch
+      }));
+      setSectionHighlights((prev) => ({
+        ...prev,
+        [sectionId]: summary
+      }));
+    } finally {
+      setAutoFillingSection(null);
+    }
+  };
+
   const applyOfflineSmartTemplates = () => {
     const idea = form.plainIdea.trim();
     const persona = (form.userPersona || 'end users').trim();
@@ -2521,8 +3477,8 @@ For each question, provide 3 concrete multiple-choice options where the first op
   // ============================================================================
   // GENERATED ARTIFACTS COMPILER (Real-time synthesis of all files)
   // ============================================================================
-  const formatPointer = (str) => {
-    if (!str) return '';
+  const formatPointer = (str: unknown) => {
+    if (typeof str !== 'string' || !str) return '';
     if (form.pointerStyle === '#file') {
       return str.replace(/@([^\s,;]+)/g, '#file:$1');
     }
@@ -2921,25 +3877,91 @@ echo "👉 Next step in Antigravity chat or agy CLI, run:"
 echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 `;
 
+    // 15. Shareable Full Blueprint Report (Master Markdown Document)
+    const fullBlueprintReportMd = `# ${projectTitle || 'SpecForge Studio Blueprint'} — Full Architectural & SDD Specification Report
+> Generated by **SpecForge Studio** (2026 Multi-Platform Prompt & SDD Workbench)
+
+---
+
+## 📋 1. Project Overview & Target Stack
+- **Project Title**: ${projectTitle || 'Untitled Blueprint'}
+- **Target Surface**: \`${form.surface}\`
+- **Target AI Agent**: \`${form.agent}\`
+- **Role Persona**: ${form.rolePersona} (${form.roleFocus})
+- **Pinned Stack**: ${form.pinnedStack}
+- **Disallowed Libraries**: ${form.unapprovedLibs}
+
+### Plain-Language Idea & User Intent
+${form.plainIdea}
+
+### Target User Persona
+${form.userPersona}
+
+---
+
+## 🎯 2. 5-Section Task Prompt (\`TASK_PROMPT.md\`)
+
+\`\`\`markdown
+${taskPromptMd}
+\`\`\`
+
+---
+
+## 🤖 3. Repository Agent Contract (\`AGENTS.md\`)
+
+\`\`\`markdown
+${agentsMd}
+\`\`\`
+
+---
+
+## ⚖️ 4. Project Constitution (\`.specify/memory/constitution.md\`)
+
+\`\`\`markdown
+${constitutionMd}
+\`\`\`
+
+---
+
+## 📐 5. EARS Feature Specification (\`specs/001-feature/spec.md\`)
+
+### Observable Acceptance Criteria (EARS Notation)
+${earsFormatted}
+
+### Required User Experience States
+${uiStatesFormatted}
+
+---
+
+## 🧩 6. Vertical-Slice Task Breakdown (\`specs/001-feature/tasks.md\`)
+
+${slicesFormatted}
+`;
+
     return {
+      'FULL_BLUEPRINT_REPORT.md': {
+        title: 'FULL_BLUEPRINT_REPORT.md (Master Shareable Spec Report)',
+        badge: 'Master Spec Report',
+        content: fullBlueprintReportMd
+      },
       'bootstrap-agy.sh': {
-        title: 'bootstrap-agy.sh (1-Click Import into agy)',
-        badge: 'Import to agy',
+        title: 'bootstrap-agy.sh (1-Click Antigravity Setup)',
+        badge: '1-Click Setup',
         content: agyBootstrapSh
       },
       'TASK_PROMPT.md': {
-        title: 'TASK_PROMPT.md (5-Section Contract)',
-        badge: 'Task Prompt',
+        title: 'TASK_PROMPT.md (5-Section AI Prompt)',
+        badge: 'Main AI Prompt',
         content: taskPromptMd
       },
       'AGENTS.md': {
-        title: 'AGENTS.md (10-Section Standard)',
-        badge: 'All Agents',
+        title: 'AGENTS.md (Project Rules for All AI Tools)',
+        badge: 'Project Rules',
         content: agentsMd
       },
       [`${form.nestedSubprojectPath}/AGENTS.md`]: {
-        title: `${form.nestedSubprojectPath}/AGENTS.md (Nested Monorepo)`,
-        badge: 'Monorepo',
+        title: `${form.nestedSubprojectPath}/AGENTS.md (Sub-Folder Rules)`,
+        badge: 'Sub-Folder Rules',
         content: nestedAgentsMd
       },
       [`.agents/rules/${form.agyRuleName}.md`]: {
@@ -2954,64 +3976,79 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       },
       '.github/copilot-instructions.md': {
         title: '.github/copilot-instructions.md',
-        badge: 'Copilot Repo',
+        badge: 'Copilot Repo Rules',
         content: copilotRepoMd
       },
       [`.github/instructions/${form.copilotInstructionName}.instructions.md`]: {
         title: `.github/instructions/${form.copilotInstructionName}.instructions.md`,
-        badge: 'Copilot Path Rule',
+        badge: 'Copilot File Rule',
         content: copilotPathMd
       },
       [`.github/agents/${form.copilotAgentName}.agent.md`]: {
         title: `.github/agents/${form.copilotAgentName}.agent.md`,
-        badge: 'Copilot Agent',
+        badge: 'Copilot Custom Agent',
         content: copilotAgentMd
       },
       '.github/workflows/copilot-setup-steps.yml': {
         title: '.github/workflows/copilot-setup-steps.yml',
-        badge: 'Copilot Cloud VM',
+        badge: 'Copilot Cloud Setup',
         content: copilotSetupYml
       },
       'jules-setup.sh': {
-        title: 'jules-setup.sh (VM Snapshot & API)',
+        title: 'jules-setup.sh (Cloud Environment Setup)',
         badge: 'Google Jules',
         content: julesSetupSh
       },
       '.specify/memory/constitution.md': {
-        title: '.specify/memory/constitution.md',
-        badge: 'SDD Stage 1',
+        title: '.specify/memory/constitution.md (Core Project Laws)',
+        badge: 'Core Laws',
         content: constitutionMd
       },
       'specs/001-feature/spec.md': {
-        title: 'specs/001-feature/spec.md (EARS Spec)',
-        badge: 'SDD Stage 2-3',
+        title: 'specs/001-feature/spec.md (Step-by-Step Goal Checks)',
+        badge: 'Goal Checks',
         content: specMd
       },
       'specs/001-feature/tasks.md': {
-        title: 'specs/001-feature/tasks.md (Vertical Slices)',
-        badge: 'SDD Stage 5-6',
+        title: 'specs/001-feature/tasks.md (Step-by-Step Task Breakdown)',
+        badge: 'Task Breakdown',
         content: tasksMd
       }
     };
-  }, [form]);
+  }, [form, projectTitle]);
 
-  const isSimpleDockFiltered = dummyProofMode && !showAllSimpleFiles;
+  const isDockFiltered = !isProMode && !showAllSimpleFiles;
   const simpleAllowedKeys = SIMPLE_ESSENTIAL_FILES.map((item) => item.key);
+  const intermediateAllowedKeys = INTERMEDIATE_CORE_FILES.map((item) => item.key);
+  const allowedDockKeys = isSimpleMode ? simpleAllowedKeys : intermediateAllowedKeys;
 
-  const handleToggleSimpleMode = (nextSimple: boolean) => {
-    setDummyProofMode(nextSimple);
-    if (nextSimple) {
+  const handleChangeViewMode = (nextMode: ViewMode) => {
+    setViewMode(nextMode);
+    if (nextMode !== 'pro') {
       setShowAllSimpleFiles(false);
+    }
+    if (nextMode === 'simple') {
       if (activeTab !== 'ideation' && activeTab !== 'guide') {
+        setActiveTab('ideation');
+      }
+    } else if (nextMode === 'intermediate') {
+      if (
+        activeTab !== 'ideation' &&
+        activeTab !== 'prompt5' &&
+        activeTab !== 'agentsmd' &&
+        activeTab !== 'sdd'
+      ) {
         setActiveTab('ideation');
       }
     }
   };
 
-  // Ensure selectedArtifact key exists when dynamic paths or Simple Mode filter change
+  // Ensure selectedArtifact key exists when dynamic paths or filtered dock modes change
   const currentArtifactKey =
     artifacts[selectedArtifact] &&
-    (!isSimpleDockFiltered || simpleAllowedKeys.includes(selectedArtifact))
+    (!isDockFiltered ||
+      allowedDockKeys.includes(selectedArtifact) ||
+      (isSimpleMode && selectedArtifact === 'FULL_BLUEPRINT_REPORT.md'))
       ? selectedArtifact
       : 'TASK_PROMPT.md';
   const currentArtifact = artifacts[currentArtifactKey];
@@ -3028,7 +4065,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     return sharedCloudProjects.filter((p) => (p.tag || '').toLowerCase().includes(code));
   }, [sharedCloudProjects, blueprintTag]);
 
-  // Validation & Guardrail Diagnostics (Antigravity 24KB limit, Copilot 30k chars, etc.)
+  // Validation & Guardrail Diagnostics (translated into plain-language health checks)
   const diagnostics = useMemo(() => {
     const agyRuleBytes = new Blob([
       artifacts[`.agents/rules/${form.agyRuleName}.md`]?.content || ''
@@ -3038,17 +4075,117 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     ).length;
     const promptChars = (artifacts['TASK_PROMPT.md']?.content || '').length;
     const estTokens = Math.ceil(promptChars / 4);
+    const agyRuleLimit = 24000;
+    const copilotAgentLimit = 30000;
+    const isRuleSizeSafe = agyRuleBytes < agyRuleLimit;
+    const isCopilotSizeSafe = copilotAgentChars < copilotAgentLimit;
+    const isPromptLong = estTokens > 4000;
 
     return {
       agyRuleBytes,
-      agyRuleLimit: 24000,
+      agyRuleLimit,
       copilotAgentChars,
-      copilotAgentLimit: 30000,
+      copilotAgentLimit,
       estTokens,
+      isRuleSizeSafe,
+      isCopilotSizeSafe,
+      isPromptLong,
+      ruleSizeMessage: isRuleSizeSafe
+        ? 'Rule file is well under size limits (AI will read it fully)'
+        : 'Rule file is getting too large — shorten it so your AI reads every rule',
+      copilotSizeMessage: isCopilotSizeSafe
+        ? 'Custom agent file is well under size limits (Copilot will read it fully)'
+        : 'Custom agent file is getting a bit long — trim extra lines so Copilot reads it all',
+      promptLengthMessage: !isPromptLong
+        ? 'Prompt size is safe for fast AI responses'
+        : 'Your prompt is getting a bit long; consider starting a fresh AI chat',
+      memorySafetyMessage:
+        estTokens < 120000
+          ? 'Instructions fit safely within AI memory limits'
+          : 'Your prompt is getting a bit long; consider starting a fresh AI chat',
       hasPrimacyAnchor: Boolean(form.rolePersona && form.objective),
       hasRecencyAnchor: Boolean(form.verificationCommands && form.deliverableFormat)
     };
   }, [artifacts, form]);
+
+  const uiStateEntries = useMemo(
+    () => Object.entries((form.uiStates || {}) as Record<string, string>),
+    [form.uiStates]
+  );
+
+  const firstIncompleteUiState = useMemo(
+    () =>
+      uiStateEntries.find(([, v]) => typeof v !== 'string' || v.trim().length <= 5)?.[0] ??
+      uiStateEntries[0]?.[0],
+    [uiStateEntries]
+  );
+
+  // Prompt Readiness Scorecard evaluation (6 checks)
+  const scorecardItems = useMemo(() => {
+    const trimmedText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+    const requiredUiStateKeys = ['loading', 'empty', 'error', 'offline', 'disabled', 'success'];
+    const uiStates =
+      form.uiStates && typeof form.uiStates === 'object' ? form.uiStates : {};
+
+    return [
+      {
+        id: 'plainIdea',
+        label: 'Plain-language idea defined (> 20 chars)',
+        passed: trimmedText(form.plainIdea).length > 20,
+        tab: 'ideation',
+        focusId: 'plain-idea-input'
+      },
+      {
+        id: 'pinnedStack',
+        label: 'Pinned stack & disallowed libraries specified',
+        passed:
+          trimmedText(form.pinnedStack).length > 5 &&
+          trimmedText(form.unapprovedLibs).length > 5,
+        tab: 'prompt5',
+        focusId: 'field-pinnedStack'
+      },
+      {
+        id: 'targetFiles',
+        label: 'Target files to modify specified (@path or #file)',
+        passed:
+          trimmedText(form.targetFilesModify).length > 2 &&
+          (form.targetFilesModify.includes('@') ||
+            form.targetFilesModify.includes('#file') ||
+            form.targetFilesModify.includes('/')),
+        tab: 'prompt5',
+        focusId: 'field-targetFilesModify'
+      },
+      {
+        id: 'uiStates',
+        label: 'All 6 UI state transitions defined (Loading, Empty, Error, Offline, Disabled, Success)',
+        passed: requiredUiStateKeys.every((key) => trimmedText(uiStates[key]).length > 5),
+        tab: 'prompt5',
+        focusId: 'field-uiStates'
+      },
+      {
+        id: 'verificationCommands',
+        label: 'Exact verification shell commands provided',
+        passed: trimmedText(form.verificationCommands).length > 5,
+        tab: 'prompt5',
+        focusId: 'field-verificationCommands'
+      },
+      {
+        id: 'earsCriteria',
+        label: 'At least 2 EARS WHEN / THE SYSTEM SHALL acceptance criteria defined',
+        passed:
+          Array.isArray(form.earsSpecs) &&
+          form.earsSpecs.filter(
+            (e: any) =>
+              e &&
+              typeof e === 'object' &&
+              trimmedText(e.when).length > 3 &&
+              trimmedText(e.shall).length > 3
+          ).length >= 2,
+        tab: 'sdd',
+        focusId: 'field-earsSpecs'
+      }
+    ];
+  }, [form]);
 
   // Native OS clipboard copy (with browser fallback)
   const handleCopy = async (text: string, keyLabel: string) => {
@@ -3212,6 +4349,56 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     updateField('verticalSlices', copy);
   };
 
+  const handleToggleIntermediateRule = (rule: IntermediateRulePreset) => {
+    setForm((prev) => {
+      const current = String(prev[rule.targetField] || '');
+      const hasRule = current.includes(rule.technicalRule);
+      const nextValue = hasRule
+        ? current
+            .split('\n')
+            .filter((line) => line.trim() !== rule.technicalRule)
+            .join('\n')
+            .trim()
+        : current.trim()
+          ? `${current.trim()}\n${rule.technicalRule}`
+          : rule.technicalRule;
+      return {
+        ...prev,
+        [rule.targetField]: nextValue
+      };
+    });
+  };
+
+  const updateIntermediateSlice = (
+    idx: number,
+    patch: { title?: string; needsHumanReview?: boolean; parallel?: boolean }
+  ) => {
+    setForm((prev) => {
+      const copy = [...prev.verticalSlices];
+      const existing = copy[idx];
+      if (!existing) return prev;
+      const nextTitle = patch.title !== undefined ? patch.title : existing.title;
+      const nextMode =
+        patch.needsHumanReview !== undefined
+          ? patch.needsHumanReview
+            ? 'HITL'
+            : 'AFK'
+          : existing.mode;
+      const nextParallel = patch.parallel !== undefined ? patch.parallel : existing.parallel;
+      copy[idx] = {
+        ...existing,
+        title: nextTitle,
+        mode: nextMode,
+        parallel: nextParallel,
+        layers: deriveTracerBulletLayers(nextTitle, prev.platform)
+      };
+      return {
+        ...prev,
+        verticalSlices: copy
+      };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 pb-16 lg:pb-0">
       {/* ====================================================================
@@ -3240,20 +4427,64 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
           {/* Right Toolbar: Beginner Explanations Toggle, Presets, Blueprints, AI Key, Export */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Simple Mode / Pro Mode Toggle */}
-            <button
-              onClick={() => handleToggleSimpleMode(!dummyProofMode)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border ${
-                dummyProofMode
-                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/50'
-                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
-              }`}
-              title="Switch between Simple Mode (No-Code) and Pro Mode (All 14 Files)"
+            {/* 3-Way View Mode Selector: Simple / Intermediate / Pro */}
+            <div
+              role="group"
+              aria-label="Workspace View Mode"
+              className="inline-flex items-center rounded-lg bg-slate-900/90 border border-slate-700/80 p-0.5 gap-0.5"
             >
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-              <span>
-                {dummyProofMode ? 'Simple Mode (No-Code)' : 'Pro Mode (All 14 Files)'}
-              </span>
+              {(
+                [
+                  {
+                    id: 'simple' as const,
+                    label: 'Simple',
+                    title: 'No-Code Wizard'
+                  },
+                  {
+                    id: 'intermediate' as const,
+                    label: 'Intermediate',
+                    title: 'Pro-Light (4 Tabs + Jargon Guide)'
+                  },
+                  {
+                    id: 'pro' as const,
+                    label: 'Pro',
+                    title: 'All 14 Files & Raw Code'
+                  }
+                ] as const
+              ).map((mode) => {
+                const active = viewMode === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleChangeViewMode(mode.id)}
+                    title={mode.title}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition ${
+                      active
+                        ? mode.id === 'simple'
+                          ? 'bg-amber-500/25 text-amber-200 border border-amber-400/50 shadow-sm'
+                          : mode.id === 'intermediate'
+                            ? 'bg-indigo-500/30 text-indigo-100 border border-indigo-400/50 shadow-sm'
+                            : 'bg-slate-700 text-white border border-slate-500/60 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                    }`}
+                  >
+                    {mode.id === 'simple' && <Lightbulb className="w-3 h-3 text-amber-400" />}
+                    <span>{mode.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Saved Projects Presets Drawer/Modal Button */}
+            <button
+              onClick={() => setPresetsModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 flex items-center gap-1.5 transition"
+              title="Save, load, or delete local project presets"
+            >
+              <Folder className="w-3.5 h-3.5 text-amber-400" />
+              <span>📂 Saved Projects ({savedPresets.length})</span>
             </button>
 
             {/* Local Blueprints Manager Button */}
@@ -3342,7 +4573,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
         {/* Navigation Tabs */}
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-800/60 bg-slate-950/50">
-          {(dummyProofMode
+          {(isSimpleMode
             ? [
                 {
                   id: 'ideation',
@@ -3357,44 +4588,71 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   badge: 'Step 2'
                 }
               ]
-            : [
-                {
-                  id: 'guide',
-                  label: '0. How to Use (Dummy-Proof Guide)',
-                  icon: Compass,
-                  badge: 'Read First'
-                },
-                {
-                  id: 'ideation',
-                  label: '1. Plain-English Idea & AI Auto-Fill',
-                  icon: Sparkles,
-                  badge: 'Step 1'
-                },
-                {
-                  id: 'prompt5',
-                  label: '2. Task Prompt Builder (5 Sections)',
-                  icon: Terminal,
-                  badge: 'Step 2'
-                },
-                {
-                  id: 'agentsmd',
-                  label: '3. AGENTS.md (Project Rules)',
-                  icon: BookOpen,
-                  badge: 'Step 3'
-                },
-                {
-                  id: 'platform_files',
-                  label: '4. Copilot, Antigravity & Jules Files',
-                  icon: FolderGit2,
-                  badge: 'Step 4'
-                },
-                {
-                  id: 'sdd',
-                  label: '5. Spec & Task Slices (spec.md / tasks.md)',
-                  icon: Layers,
-                  badge: 'Step 5'
-                }
-              ]
+            : isIntermediateMode
+              ? [
+                  {
+                    id: 'ideation',
+                    label: '1. Idea & AI Setup',
+                    icon: Sparkles,
+                    badge: 'Step 1'
+                  },
+                  {
+                    id: 'prompt5',
+                    label: '2. Custom AI Prompt',
+                    icon: Terminal,
+                    badge: 'Step 2'
+                  },
+                  {
+                    id: 'agentsmd',
+                    label: '3. Project Rules',
+                    icon: BookOpen,
+                    badge: 'Step 3'
+                  },
+                  {
+                    id: 'sdd',
+                    label: '4. Feature Checklist',
+                    icon: Layers,
+                    badge: 'Step 4'
+                  }
+                ]
+              : [
+                  {
+                    id: 'guide',
+                    label: '0. How to Use (Dummy-Proof Guide)',
+                    icon: Compass,
+                    badge: 'Read First'
+                  },
+                  {
+                    id: 'ideation',
+                    label: '1. Plain-English Idea & AI Auto-Fill',
+                    icon: Sparkles,
+                    badge: 'Step 1'
+                  },
+                  {
+                    id: 'prompt5',
+                    label: '2. Task Prompt Builder (5 Sections)',
+                    icon: Terminal,
+                    badge: 'Step 2'
+                  },
+                  {
+                    id: 'agentsmd',
+                    label: '3. AGENTS.md (Project Rules)',
+                    icon: BookOpen,
+                    badge: 'Step 3'
+                  },
+                  {
+                    id: 'platform_files',
+                    label: '4. Copilot, Antigravity & Jules Files',
+                    icon: FolderGit2,
+                    badge: 'Step 4'
+                  },
+                  {
+                    id: 'sdd',
+                    label: '5. Spec & Task Slices (spec.md / tasks.md)',
+                    icon: Layers,
+                    badge: 'Step 5'
+                  }
+                ]
           ).map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -3715,11 +4973,132 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
         </div>
       )}
 
+      {/* ====================================================================
+          SAVED PROJECT PRESETS MODAL (LOCAL STORAGE)
+         ==================================================================== */}
+      {presetsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPresetsModalOpen(false);
+          }}
+        >
+          <div
+            ref={presetsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="presets-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Folder className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h2 id="presets-dialog-title" className="text-base font-bold text-white">
+                    Saved Project Presets
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Save and switch between multiple named project configurations locally.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPresetsModalOpen(false)}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs hover:bg-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Save Current as Preset */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Bookmark className="w-3.5 h-3.5" />
+                Save Current as Preset
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={presetNameInput}
+                  onChange={(e) => setPresetNameInput(e.target.value)}
+                  placeholder={projectTitle || 'Preset name (e.g., E-Commerce Blueprint)'}
+                  aria-label="Preset Name"
+                  className="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  onClick={handleSavePreset}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow transition shrink-0"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Save Current as Preset
+                </button>
+              </div>
+            </div>
+
+            {/* Saved Presets List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                  Saved Presets ({savedPresets.length})
+                </h4>
+                <button
+                  onClick={handleResetToDefaultPreset}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition"
+                >
+                  Reset to Default
+                </button>
+              </div>
+
+              {savedPresets.length === 0 ? (
+                <p className="text-xs text-slate-500 bg-slate-950/60 p-4 rounded-xl border border-slate-800 text-center">
+                  No project presets saved yet. Enter a name above and click &quot;Save Current as Preset&quot;.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {savedPresets.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">{item.name}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : 'Saved'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleLoadPreset(item)}
+                          aria-label={`Load preset ${item.name}`}
+                          className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 text-xs font-medium hover:bg-amber-500/30 border border-amber-500/30"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeletePreset(item.id, item.name)}
+                          aria-label={`Delete preset ${item.name}`}
+                          className="p-1.5 rounded bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border border-rose-500/30"
+                          title={`Delete preset ${item.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Optional Status Toast Banner */}
       {statusMessage && (
         <div
           className={`max-w-[1600px] w-full mx-auto px-4 sm:px-6 pt-3 ${
-            cloudModalOpen || settingsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
+            cloudModalOpen || settingsModalOpen || presetsModalOpen ? 'fixed inset-x-0 top-0 z-[60]' : ''
           }`}
         >
           <div
@@ -4059,14 +5438,29 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 <div className="space-y-3">
                   <div>
-                    <label
-                      htmlFor="plain-idea-input"
-                      className="block text-xs font-medium text-slate-300 mb-1"
-                    >
-                      {dummyProofMode
-                        ? 'What should your app do?'
-                        : 'Plain-Language Feature / Application Idea'}
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <label
+                          htmlFor="plain-idea-input"
+                          className="block text-xs font-medium text-slate-300"
+                        >
+                          {dummyProofMode
+                            ? 'What should your app do?'
+                            : 'Plain-Language Feature / Application Idea'}
+                        </label>
+                        <InfoTooltip text="Write your main app or feature idea in everyday language. All AI auto-fill buttons use this as their core context." />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={expandingField === 'plainIdea'}
+                        onClick={() => handleAutoExpandField('plainIdea')}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs font-medium text-indigo-200 disabled:opacity-50 transition"
+                      >
+                        {expandingField === 'plainIdea'
+                          ? 'Expanding options...'
+                          : '✨ Auto-Expand Options'}
+                      </button>
+                    </div>
                     <textarea
                       id="plain-idea-input"
                       rows={4}
@@ -4075,17 +5469,27 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       placeholder="e.g., Build a real-time team Kanban board where managers can drag tasks, assign reviewers, and export CSV reports with strict role permissions..."
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                     />
+                    {expandedHighlights.plainIdea && (
+                      <ExpandedTextHighlight
+                        fieldKey="plainIdea"
+                        text={expandedHighlights.plainIdea}
+                        onClear={() => clearExpandedHighlight('plainIdea')}
+                      />
+                    )}
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="user-persona-input"
-                      className="block text-xs font-medium text-slate-300 mb-1"
-                    >
-                      {dummyProofMode
-                        ? 'Who will use this app?'
-                        : 'Target Users & Problem Context'}
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="user-persona-input"
+                        className="block text-xs font-medium text-slate-300"
+                      >
+                        {dummyProofMode
+                          ? 'Who will use this app?'
+                          : 'Target Users & Problem Context'}
+                      </label>
+                      <InfoTooltip text="Describes who is using the app and what problem it solves for them." />
+                    </div>
                     <input
                       id="user-persona-input"
                       type="text"
@@ -4102,8 +5506,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div className="space-y-4 pt-2">
                     {/* 1. Platform Visual Picker */}
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-slate-200">
-                        What kind of app are you making?
+                      <legend className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                        <span>What kind of app are you making?</span>
+                        <InfoTooltip text="Selects the right tech stack and security rules for Web, Mobile, or Desktop." />
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {[
@@ -4156,8 +5561,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* 2. AI Tool Visual Picker */}
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-slate-200">
-                        Which AI tool are you pasting this into?
+                      <legend className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                        <span>Which AI tool are you pasting this into?</span>
+                        <InfoTooltip text="Formats file references and slash commands for your chosen AI coding assistant." />
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {[
@@ -4202,8 +5608,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* 3. Execution Style Visual Picker */}
                     <fieldset className="space-y-2">
-                      <legend className="text-xs font-semibold text-slate-200">
-                        How do you want the AI to work?
+                      <legend className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                        <span>How do you want the AI to work?</span>
+                        <InfoTooltip text="Choose whether the AI pauses for your review (HITL) or runs autonomously in the background (AFK)." />
                       </legend>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {[
@@ -4248,9 +5655,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                     {/* Target Agent Harness */}
                     <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                        Target Coding Agent
-                      </label>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                          Target Coding Agent
+                        </label>
+                        <InfoTooltip text="Tailors rule files and slash commands for Antigravity, Copilot, or Jules." />
+                      </div>
                       <select
                         value={form.agent}
                         onChange={(e) => updateField('agent', e.target.value)}
@@ -4272,9 +5682,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* Target Application Domain */}
                     <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                        Target Domain Architecture
-                      </label>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                          Target Domain Architecture
+                        </label>
+                        <InfoTooltip text="Automatically primes architecture and security rules for Web, Mobile, or Desktop." />
+                      </div>
                       <select
                         value={form.platform}
                         onChange={(e) =>
@@ -4296,9 +5709,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                     {/* Execution Mode */}
                     <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                        Slice Execution Mode
-                      </label>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                          Slice Execution Mode
+                        </label>
+                        <InfoTooltip text="HITL pauses for human review; AFK runs slices autonomously in a cloud VM or subagent." />
+                      </div>
                       <select
                         value={form.executionMode}
                         onChange={(e) => updateField('executionMode', e.target.value)}
@@ -4476,9 +5892,15 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </div>
 
               {dummyProofMode && (
-                <div className="flex justify-center pt-1">
+                <div className="flex flex-wrap items-center justify-center gap-4 pt-1">
                   <button
-                    onClick={() => handleToggleSimpleMode(false)}
+                    onClick={() => handleChangeViewMode('intermediate')}
+                    className="text-xs text-indigo-300 hover:text-indigo-200 underline underline-offset-4 transition"
+                  >
+                    Try Intermediate Mode (4 Tabs + Jargon Guide)
+                  </button>
+                  <button
+                    onClick={() => handleChangeViewMode('pro')}
                     className="text-xs text-slate-400 hover:text-indigo-300 underline underline-offset-4 transition"
                   >
                     Switch to Pro Mode to edit 5-Section Prompts, AGENTS.md &amp; EARS Specs
@@ -4493,7 +5915,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
              ---------------------------------------------------------------- */}
           {activeTab === 'prompt5' && (
             <div className="space-y-5">
-              {dummyProofMode && (
+              {showPlainHelpers && (
                 <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 flex items-start gap-3 text-xs text-amber-100">
                   <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
@@ -4505,20 +5927,41 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               )}
 
-              {/* Section 1: Role Persona & Primary Objective (Primacy Anchor) */}
+              {/* Section 1: Role Persona & Primary Objective (Top-Priority Rules) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
-                      Section 1 • Primacy Anchor (High Model Attention Weight)
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <span>Section 1 • Top-Priority Rules (AI Attention Top Section)</span>
+                      <InfoTooltip text="Putting your most important instructions at the top of the prompt where AI reads them best." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Role Persona &amp; Primary Objective
                     </h3>
                   </div>
+                  <SectionAutoFillButton
+                    sectionId="role_objective"
+                    activeSection={autoFillingSection}
+                    onAutoFill={handleAutoFillSection}
+                  />
                 </div>
 
-                {dummyProofMode && (
+                {sectionHighlights.role_objective && (
+                  <SectionAutoFillHighlight
+                    sectionId="role_objective"
+                    text={sectionHighlights.role_objective}
+                    onClear={() => clearSectionHighlight('role_objective')}
+                  />
+                )}
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="Primacy Anchor"
+                    explanation="Putting your most important rules and AI role at the very top of the prompt where the AI reads them best."
+                  />
+                )}
+
+                {showPlainHelpers && (
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] text-slate-400">1-Click Role Chips:</span>
                     {QUICK_FILL_CHIPS.rolePersona.map((chip, i) => (
@@ -4535,9 +5978,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Senior Engineering Persona
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Senior Engineering Persona
+                      </label>
+                      <InfoTooltip text="Sets the AI's expert mindset and seniority level for writing production code." />
+                    </div>
                     <input
                       type="text"
                       value={form.rolePersona}
@@ -4547,9 +5993,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Domain Specialization Focus
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Domain Specialization Focus
+                      </label>
+                      <InfoTooltip text="Pinpoints the specific technical specialty the AI should prioritize." />
+                    </div>
                     <input
                       type="text"
                       value={form.roleFocus}
@@ -4559,26 +6008,70 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      1-Sentence Feature / Fix Objective
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <label className="block text-xs font-medium text-slate-300">
+                          1-Sentence Feature / Fix Objective
+                        </label>
+                        <InfoTooltip text="A concise, single-sentence statement of the exact feature or fix to build." />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={expandingField === 'objective'}
+                        onClick={() => handleAutoExpandField('objective')}
+                        className="px-2 py-0.5 rounded bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-[11px] font-medium text-indigo-200 disabled:opacity-50 transition"
+                      >
+                        {expandingField === 'objective'
+                          ? 'Expanding options...'
+                          : '✨ Auto-Expand Options'}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={form.objective}
                       onChange={(e) => updateField('objective', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
                     />
+                    {expandedHighlights.objective && (
+                      <ExpandedTextHighlight
+                        fieldKey="objective"
+                        text={expandedHighlights.objective}
+                        onClear={() => clearExpandedHighlight('objective')}
+                      />
+                    )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Observable User Outcome ("so that...")
-                    </label>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <label className="block text-xs font-medium text-slate-300">
+                          Observable User Outcome ("so that...")
+                        </label>
+                        <InfoTooltip text="Describes the tangible benefit a real user experiences once the feature works." />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={expandingField === 'observableOutcome'}
+                        onClick={() => handleAutoExpandField('observableOutcome')}
+                        className="px-2 py-0.5 rounded bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-[11px] font-medium text-indigo-200 disabled:opacity-50 transition"
+                      >
+                        {expandingField === 'observableOutcome'
+                          ? 'Expanding options...'
+                          : '✨ Auto-Expand Options'}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={form.observableOutcome}
                       onChange={(e) => updateField('observableOutcome', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
                     />
+                    {expandedHighlights.observableOutcome && (
+                      <ExpandedTextHighlight
+                        fieldKey="observableOutcome"
+                        text={expandedHighlights.observableOutcome}
+                        onClear={() => clearExpandedHighlight('observableOutcome')}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -4587,45 +6080,68 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
-                      Section 2 • Narrow Reasoning Boundaries
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                      <span>Section 2 • Narrow Reasoning Boundaries</span>
+                      <InfoTooltip text="Tells the AI which files to edit, which files to read, and which exact libraries to use." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Target Context, Pinned Stack &amp; File Pointers
                     </h3>
                   </div>
 
-                  {/* Pointer Syntax Switcher */}
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                    <button
-                      onClick={() => updateField('pointerStyle', '@path')}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                        form.pointerStyle === '@path'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      @path/to/file (Antigravity / CLI)
-                    </button>
-                    <button
-                      onClick={() => updateField('pointerStyle', '#file')}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                        form.pointerStyle === '#file'
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      #file:path (VS Code Copilot)
-                    </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="context_stack"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
+                    {/* Pointer Syntax Switcher */}
+                    <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <button
+                        onClick={() => updateField('pointerStyle', '@path')}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition ${
+                          form.pointerStyle === '@path'
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        @path/to/file (Antigravity / CLI)
+                      </button>
+                      <button
+                        onClick={() => updateField('pointerStyle', '#file')}
+                        className={`px-2.5 py-1 rounded text-xs font-medium transition ${
+                          form.pointerStyle === '#file'
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        #file:path (VS Code Copilot)
+                      </button>
+                    </div>
                   </div>
                 </div>
 
+                {sectionHighlights.context_stack && (
+                  <SectionAutoFillHighlight
+                    sectionId="context_stack"
+                    text={sectionHighlights.context_stack}
+                    onClear={() => clearSectionHighlight('context_stack')}
+                  />
+                )}
+
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Target Files to Modify
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="field-targetFilesModify"
+                        className="block text-xs font-medium text-slate-300"
+                      >
+                        Target Files to Modify
+                      </label>
+                      <InfoTooltip text="Exact file paths the AI is allowed to create or edit for this task." />
+                    </div>
                     <input
+                      id="field-targetFilesModify"
                       type="text"
                       value={form.targetFilesModify}
                       onChange={(e) => updateField('targetFilesModify', e.target.value)}
@@ -4633,9 +6149,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Reference Files &amp; Interfaces (Read-Only Context)
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Reference Files &amp; Interfaces (Read-Only Context)
+                      </label>
+                      <InfoTooltip text="Existing files the AI should read to understand types and patterns without modifying them." />
+                    </div>
                     <input
                       type="text"
                       value={form.targetFilesRef}
@@ -4645,16 +6164,23 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Pinned Stack &amp; Exact SDK Versions
-                      </label>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="field-pinnedStack"
+                          className="block text-xs font-medium text-slate-300"
+                        >
+                          Pinned Stack &amp; Exact SDK Versions
+                        </label>
+                        <InfoTooltip text="Locks in framework and library versions so the AI doesn't use outdated syntax." />
+                      </div>
                       <textarea
+                        id="field-pinnedStack"
                         rows={2}
                         value={form.pinnedStack}
                         onChange={(e) => updateField('pinnedStack', e.target.value)}
                         className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                       />
-                      {dummyProofMode && (
+                      {showPlainHelpers && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {QUICK_FILL_CHIPS.pinnedStack.map((stackChip, idx) => (
                             <button
@@ -4669,9 +6195,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Unapproved Libraries &amp; Deprecated Patterns to Reject
-                      </label>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label className="block text-xs font-medium text-slate-300">
+                          Unapproved Libraries &amp; Deprecated Patterns to Reject
+                        </label>
+                        <InfoTooltip text="Libraries or legacy patterns the AI is strictly forbidden from introducing." />
+                      </div>
                       <textarea
                         rows={2}
                         value={form.unapprovedLibs}
@@ -4681,9 +6210,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Visual Mockup / GitHub Issue Context
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Visual Mockup / GitHub Issue Context
+                      </label>
+                      <InfoTooltip text="Optional design notes, Figma references, or GitHub issue context." />
+                    </div>
                     <input
                       type="text"
                       value={form.visualContext}
@@ -4698,8 +6230,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-                      Section 3 • Non-Negotiable Boundaries
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <span>Section 3 • Non-Negotiable Boundaries</span>
+                      <InfoTooltip text="Strict architectural and security rules the AI must never violate." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Architectural Invariants, Runtime &amp; Security Constraints
@@ -4708,6 +6241,11 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                   {/* Quick Domain Boundary Injectors */}
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <SectionAutoFillButton
+                      sectionId="constraints"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
                     <span className="text-[11px] text-slate-400">Inject Rules:</span>
                     <button
                       onClick={() => applyDomainInvariants('web')}
@@ -4736,33 +6274,118 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
+                {sectionHighlights.constraints && (
+                  <SectionAutoFillHighlight
+                    sectionId="constraints"
+                    text={sectionHighlights.constraints}
+                    onClear={() => clearSectionHighlight('constraints')}
+                  />
+                )}
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="State Invariants & TurboModules"
+                    explanation="Invariants are 'never-break' data & security laws (like keeping secrets out of the browser). TurboModules are high-speed bridges used when React Native apps talk to native phone hardware."
+                  />
+                )}
+
                 <div className="space-y-3">
+                  {isIntermediateMode ? (
+                    <div className="space-y-2.5">
+                      <p className="text-xs font-medium text-slate-300">
+                        Plain-English Engineering Rules (check the rules you want enforced):
+                      </p>
+                      <div className="space-y-2">
+                        {INTERMEDIATE_RULE_PRESETS.map((rule) => {
+                          const checked = String(form[rule.targetField] || '').includes(
+                            rule.technicalRule
+                          );
+                          return (
+                            <label
+                              key={rule.id}
+                              className={`flex items-start gap-2.5 rounded-xl border p-3 cursor-pointer transition ${
+                                checked
+                                  ? 'bg-indigo-500/15 border-indigo-400/50 text-white'
+                                  : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => handleToggleIntermediateRule(rule)}
+                                className="mt-0.5 accent-indigo-500 rounded"
+                              />
+                              <div className="space-y-0.5">
+                                <span className="block text-xs font-semibold">{rule.label}</span>
+                                <span className="block text-[11px] text-slate-400">
+                                  {rule.helper}
+                                </span>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <details className="rounded-xl bg-slate-950/70 border border-slate-800 px-3 py-2 text-[11px] text-slate-400">
+                        <summary className="cursor-pointer font-medium text-slate-300 select-none">
+                          View generated technical rules added to your prompt
+                        </summary>
+                        <div className="mt-2 space-y-2 font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
+                          <div>
+                            <span className="text-indigo-300 font-semibold">
+                              State &amp; Data Rules:
+                            </span>
+                            {'\n'}
+                            {form.stateAndDataRules}
+                          </div>
+                          <div>
+                            <span className="text-amber-300 font-semibold">
+                              Runtime &amp; Security Limits:
+                            </span>
+                            {'\n'}
+                            {form.runtimeAndSecurityLimits}
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <label className="block text-xs font-medium text-slate-300">
+                            State Placement &amp; Architectural Boundary Rules (Direct Imperatives)
+                          </label>
+                          <InfoTooltip text="Defines where state lives (server vs. client) and how modules communicate." />
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={form.stateAndDataRules}
+                          onChange={(e) => updateField('stateAndDataRules', e.target.value)}
+                          className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <label className="block text-xs font-medium text-slate-300">
+                            Runtime, Threading, Accessibility &amp; Security Constraints
+                          </label>
+                          <InfoTooltip text="Performance budgets, UI thread safety, accessibility standards, and security rules." />
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={form.runtimeAndSecurityLimits}
+                          onChange={(e) => updateField('runtimeAndSecurityLimits', e.target.value)}
+                          className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      State Placement &amp; Architectural Boundary Rules (Direct Imperatives)
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={form.stateAndDataRules}
-                      onChange={(e) => updateField('stateAndDataRules', e.target.value)}
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Runtime, Threading, Accessibility &amp; Security Constraints
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={form.runtimeAndSecurityLimits}
-                      onChange={(e) => updateField('runtimeAndSecurityLimits', e.target.value)}
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Restricted / Generated Files (Forbidden to Edit by Hand)
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Restricted / Generated Files (Forbidden to Edit by Hand)
+                      </label>
+                      <InfoTooltip text="Lockfiles, build outputs, or migrations that the AI must never manually edit." />
+                    </div>
                     <input
                       type="text"
                       value={form.restrictedFiles}
@@ -4775,22 +6398,38 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
               {/* Section 4: Scoped Vertical-Slice Task Steps & Concrete Examples */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-                      Section 4 • Sequential Sub-Steps &amp; State Matrix
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <span>Section 4 • Sequential Sub-Steps &amp; State Matrix</span>
+                      <InfoTooltip text="Step-by-step implementation order, UI states, and concrete input/output examples." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Scoped Vertical-Slice Steps &amp; Concrete Examples
                     </h3>
                   </div>
-                  <button
-                    onClick={addStep}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1 hover:bg-emerald-600/30"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Step
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="task_steps"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
+                    <button
+                      onClick={addStep}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1 hover:bg-emerald-600/30"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Step
+                    </button>
+                  </div>
                 </div>
+
+                {sectionHighlights.task_steps && (
+                  <SectionAutoFillHighlight
+                    sectionId="task_steps"
+                    text={sectionHighlights.task_steps}
+                    onClear={() => clearSectionHighlight('task_steps')}
+                  />
+                )}
 
                 {/* Ordered Steps */}
                 <div className="space-y-2">
@@ -4818,11 +6457,14 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 {/* 6 UI States Matrix */}
                 <div className="pt-2">
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">
-                    Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
-                  </label>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <label className="block text-xs font-semibold text-slate-300">
+                      Explicit UI &amp; Domain State Transitions (Loading, Empty, Error, Offline, Disabled, Success)
+                    </label>
+                    <InfoTooltip text="Ensures the AI designs every screen state instead of only coding the happy path." />
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {Object.entries(form.uiStates).map(([stateKey, desc]) => (
+                    {uiStateEntries.map(([stateKey, desc]) => (
                       <div
                         key={stateKey}
                         className="bg-slate-950 border border-slate-800 rounded-xl p-2.5"
@@ -4831,6 +6473,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                           {stateKey} State
                         </span>
                         <input
+                          id={stateKey === firstIncompleteUiState ? 'field-uiStates' : undefined}
+                          aria-label={`${stateKey} State`}
                           type="text"
                           value={String(desc ?? '')}
                           onChange={(e) => updateUiState(stateKey, e.target.value)}
@@ -4844,9 +6488,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 {/* Example Input / Output */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Concrete Example Input Payload
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Concrete Example Input Payload
+                      </label>
+                      <InfoTooltip text="A real sample input so the AI knows the exact data shape to expect." />
+                    </div>
                     <input
                       type="text"
                       value={form.exampleInput}
@@ -4855,9 +6502,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Expected Output / Sorting Contract
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Expected Output / Sorting Contract
+                      </label>
+                      <InfoTooltip text="The exact output or UI result the AI should produce for the sample input." />
+                    </div>
                     <input
                       type="text"
                       value={form.exampleOutput}
@@ -4868,41 +6518,72 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               </div>
 
-              {/* Section 5: Verification Loop & Output Contract (Recency Anchor) */}
+              {/* Section 5: Verification Loop & Output Contract (Final Instructions) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400">
-                      Section 5 • Recency Anchor (High Model Attention Weight)
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                      <span>Section 5 • Final Instructions (AI Attention Bottom Section)</span>
+                      <InfoTooltip text="Putting your verification commands at the very bottom ensures the AI runs tests right before finishing." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Verification Loop &amp; Output Contract
                     </h3>
                   </div>
 
-                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.planFirstGate}
-                      onChange={(e) => updateField('planFirstGate', e.target.checked)}
-                      className="accent-indigo-500 rounded"
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="verification"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
                     />
-                    <span>Require Plan-First Approval Gate</span>
-                  </label>
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.planFirstGate}
+                        onChange={(e) => updateField('planFirstGate', e.target.checked)}
+                        className="accent-indigo-500 rounded"
+                      />
+                      <span>Require Plan-First Approval Gate</span>
+                      <InfoTooltip text="Asks the AI to show a step-by-step plan and wait for your approval before editing files." />
+                    </label>
+                  </div>
                 </div>
+
+                {sectionHighlights.verification && (
+                  <SectionAutoFillHighlight
+                    sectionId="verification"
+                    text={sectionHighlights.verification}
+                    onClear={() => clearSectionHighlight('verification')}
+                  />
+                )}
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="Recency Anchor"
+                    explanation="Putting exact test and verification commands at the very bottom of the prompt so the AI runs checks right before finishing."
+                  />
+                )}
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Exact Verification Shell Commands (Typecheck, Lint, Scoped Tests)
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="field-verificationCommands"
+                        className="block text-xs font-medium text-slate-300"
+                      >
+                        Exact Verification Shell Commands (Typecheck, Lint, Scoped Tests)
+                      </label>
+                      <InfoTooltip text="Shell commands the AI must execute and pass before reporting its work complete." />
+                    </div>
                     <input
+                      id="field-verificationCommands"
                       type="text"
                       value={form.verificationCommands}
                       onChange={(e) => updateField('verificationCommands', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs font-mono text-purple-200 focus:outline-none focus:border-indigo-500"
                     />
-                    {dummyProofMode && (
+                    {showPlainHelpers && (
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
                         <span className="text-[10px] text-slate-400">1-Click Test Commands:</span>
                         {QUICK_FILL_CHIPS.verificationCommands.map((cmd, idx) => (
@@ -4918,9 +6599,12 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Required Deliverable Format &amp; Summary Contract
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label className="block text-xs font-medium text-slate-300">
+                        Required Deliverable Format &amp; Summary Contract
+                      </label>
+                      <InfoTooltip text="Specifies how the AI should format its final response and verification report." />
+                    </div>
                     <textarea
                       rows={2}
                       value={form.deliverableFormat}
@@ -4943,20 +6627,43 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div>
                     <h2 className="text-base font-semibold text-white flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-indigo-400" />
-                      Root <code>AGENTS.md</code> Builder (10-Section Open Standard)
+                      <span>Root <code>AGENTS.md</code> Builder (10-Section Open Standard)</span>
+                      <InfoTooltip text="Permanent repository guide automatically read by Antigravity, GitHub Copilot, and Google Jules." />
                     </h2>
                     <p className="text-xs text-slate-400">
                       Natively discovered by Google Jules, GitHub Copilot, and Google Antigravity.
                       Separates durable repository context from transient task prompts.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setSelectedArtifact('AGENTS.md')}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium"
-                  >
-                    Preview AGENTS.md →
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="agentsmd"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
+                    <button
+                      onClick={() => setSelectedArtifact('AGENTS.md')}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium"
+                    >
+                      Preview AGENTS.md →
+                    </button>
+                  </div>
                 </div>
+
+                {sectionHighlights.agentsmd && (
+                  <SectionAutoFillHighlight
+                    sectionId="agentsmd"
+                    text={sectionHighlights.agentsmd}
+                    onClear={() => clearSectionHighlight('agentsmd')}
+                  />
+                )}
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="10-Section AGENTS.md"
+                    explanation="A standardized README written specifically for AI coding agents so Antigravity, Copilot, and Jules automatically follow your project's build and testing rules."
+                  />
+                )}
 
                 {/* All 10 Standard Sections */}
                 <div className="space-y-4">
@@ -5127,18 +6834,18 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       Google Antigravity • .agents/rules/*.md &amp; .agents/skills/*/SKILL.md
                     </span>
                     <h3 className="text-base font-semibold text-white">
-                      Modular Rules &amp; Agent Skills Configurator (Silent-Discard Protected)
+                      Modular Rules &amp; Agent Skills Configurator
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-xs px-2.5 py-1 rounded-full font-mono ${
-                        diagnostics.agyRuleBytes < diagnostics.agyRuleLimit
+                      className={`text-xs px-2.5 py-1 rounded-full ${
+                        diagnostics.isRuleSizeSafe
                           ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                           : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                       }`}
                     >
-                      Rule Size: {diagnostics.agyRuleBytes} / 24,000 bytes
+                      🟢 Rule Size: {diagnostics.ruleSizeMessage}
                     </span>
                   </div>
                 </div>
@@ -5146,7 +6853,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Rule File Name (Flat <code>.agents/rules/</code> scan only)
+                      Rule File Name (<code>.agents/rules/</code>)
                     </label>
                     <input
                       type="text"
@@ -5157,29 +6864,30 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs font-mono text-white"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Slashes are automatically converted to hyphens so Antigravity's flat directory
-                      scanner never silently ignores the rule.
+                      Slashes are automatically turned into hyphens so Antigravity always finds your
+                      rule file.
                     </p>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Mandatory YAML <code>snake_case</code> Trigger
+                      When Should Antigravity Load This Rule?
                     </label>
                     <select
                       value={form.agyTrigger}
                       onChange={(e) => updateField('agyTrigger', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white"
                     >
-                      <option value="always_on">always_on (Injected on every turn)</option>
+                      <option value="always_on">always_on (Loaded in every chat)</option>
                       <option value="model_decision">
-                        model_decision (Progressive disclosure via description)
+                        model_decision (AI loads it automatically when relevant)
                       </option>
-                      <option value="glob">glob (Activates when touching matching files)</option>
-                      <option value="manual">manual (Loaded only when @-mentioned in IDE)</option>
+                      <option value="glob">glob (Loaded when editing matching files)</option>
+                      <option value="manual">manual (Loaded only when you @-mention it)</option>
                     </select>
                     <p className="text-[11px] text-amber-300/80 mt-1">
-                      Prevents silent discard caused by camelCase triggers (like alwaysOn).
+                      Uses standard underscore names so Antigravity loads your rule reliably every
+                      time.
                     </p>
                   </div>
                 </div>
@@ -5187,7 +6895,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 {form.agyTrigger === 'glob' && (
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Glob Pattern (Automatically quoted to prevent YAML <code>*</code> alias errors)
+                      File Match Pattern (Automatically quoted for safe formatting)
                     </label>
                     <input
                       type="text"
@@ -5212,7 +6920,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Third-Person Intent-Driven Skill Description (What + When to Trigger)
+                      Skill Summary (What it does &amp; when the AI should use it)
                     </label>
                     <input
                       type="text"
@@ -5252,8 +6960,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       Path-Scoped Instructions &amp; Specialist Agent Pipeline
                     </h3>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                    .agent.md: {diagnostics.copilotAgentChars} / 30,000 chars
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    🟢 Agent File Size: {diagnostics.copilotSizeMessage}
                   </span>
                 </div>
 
@@ -5399,22 +7107,37 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
             <div className="space-y-5">
               {/* Stage 1: Project Constitution */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
-                      Stage 1 • /speckit.constitution (.specify/memory/constitution.md)
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <span>Stage 1 • Core Project Laws (.specify/memory/constitution.md)</span>
+                      <InfoTooltip text="Permanent non-negotiable engineering laws that every feature and AI session must obey." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
                       Immutable Engineering Principles
                     </h3>
                   </div>
-                  <button
-                    onClick={() => setSelectedArtifact('.specify/memory/constitution.md')}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs"
-                  >
-                    Preview constitution.md →
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="sdd_constitution"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
+                    <button
+                      onClick={() => setSelectedArtifact('.specify/memory/constitution.md')}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs"
+                    >
+                      Preview constitution.md →
+                    </button>
+                  </div>
                 </div>
+                {sectionHighlights.sdd_constitution && (
+                  <SectionAutoFillHighlight
+                    sectionId="sdd_constitution"
+                    text={sectionHighlights.sdd_constitution}
+                    onClear={() => clearSectionHighlight('sdd_constitution')}
+                  />
+                )}
                 <textarea
                   rows={4}
                   value={form.constitutionRules}
@@ -5423,27 +7146,34 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 />
               </div>
 
-              {/* Stage 2: EARS Notation Requirements Builder (spec.md) */}
+              {/* Stage 2: Step-by-Step Goal Checks (When/Then Rules) (spec.md) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
-                      Stage 2 • /speckit.specify (Zone A: Zero Tech-Stack Bias)
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                      <span>Stage 2 • Feature Goals &amp; When/Then Rules (No Tech-Stack Bias)</span>
+                      <InfoTooltip text="Defines observable user behavior using WHEN [trigger] -> THE SYSTEM SHALL [reaction] rules." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
-                      EARS Notation Acceptance Criteria Builder (<code>spec.md</code>)
+                      Step-by-Step Goal Checks (When/Then Rules) (<code>spec.md</code>)
                     </h3>
                     <p className="text-xs text-slate-400">
                       Pair concrete trigger conditions (<strong>WHEN</strong>) with explicit
                       observable system reactions (<strong>THE SYSTEM SHALL</strong>).
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="sdd_spec"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
                     <button
+                      id={form.earsSpecs.length === 0 ? 'field-earsSpecs' : undefined}
                       onClick={addEars}
                       className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-300 border border-cyan-500/30 text-xs flex items-center gap-1"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add EARS Statement
+                      <Plus className="w-3.5 h-3.5" /> Add Goal Check
                     </button>
                     <button
                       onClick={() => setSelectedArtifact('specs/001-feature/spec.md')}
@@ -5454,6 +7184,21 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
+                {sectionHighlights.sdd_spec && (
+                  <SectionAutoFillHighlight
+                    sectionId="sdd_spec"
+                    text={sectionHighlights.sdd_spec}
+                    onClear={() => clearSectionHighlight('sdd_spec')}
+                  />
+                )}
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="EARS Notation"
+                    explanation="A simple 'WHEN [trigger] -> THE SYSTEM SHALL [result]' format that removes ambiguity so your AI writes exact behavior and tests."
+                  />
+                )}
+
                 <div className="space-y-3">
                   {form.earsSpecs.map((item, idx) => (
                     <div
@@ -5462,7 +7207,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-cyan-300">
-                          EARS Requirement #{idx + 1}
+                          Goal Check #{idx + 1} (When / Then)
                         </span>
                         <button
                           onClick={() => removeEars(idx)}
@@ -5477,6 +7222,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                             WHEN (Trigger Condition)
                           </span>
                           <input
+                            id={idx === 0 ? 'field-earsSpecs' : undefined}
                             type="text"
                             value={item.when}
                             onChange={(e) => editEars(idx, 'when', e.target.value)}
@@ -5500,29 +7246,35 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               </div>
 
-              {/* Stage 5 & 6: Vertical-Slice ("Tracer Bullet") Task Decomposer (tasks.md) */}
+              {/* Stage 3: Step-by-Step Task Breakdown (tasks.md) */}
               <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-                      Stage 5 &amp; 6 • /speckit.tasks &amp; Subagent Execution (Zone B)
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <span>Stage 3 • Full-Feature Task Breakdown &amp; Parallel Execution</span>
+                      <InfoTooltip text="Breaks your project into end-to-end mini-features (data + UI + tests) instead of disconnected layers." />
                     </span>
                     <h3 className="text-base font-semibold text-white">
-                      Vertical-Slice ("Tracer Bullet") Task Decomposer (<code>tasks.md</code>)
+                      Step-by-Step Task Breakdown (Full Features, Not Horizontal Layers) (
+                      <code>tasks.md</code>)
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Never slice horizontally. Every slice cuts end-to-end across schema, service,
-                      boundary, UI, and tests. Tag <code>[HITL]</code> vs <code>[AFK]</code> and{' '}
-                      <code>[P]</code> for parallel <code>/fleet</code> or <code>/teamwork</code>{' '}
-                      subagents.
+                      Build one complete feature slice at a time across data, service, boundary,
+                      UI, and tests. Tag <code>[HITL]</code> (Human Review) vs <code>[AFK]</code>{' '}
+                      (Automatic) and <code>[P]</code> for parallel execution.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SectionAutoFillButton
+                      sectionId="sdd_tasks"
+                      activeSection={autoFillingSection}
+                      onAutoFill={handleAutoFillSection}
+                    />
                     <button
                       onClick={addSlice}
                       className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 text-xs flex items-center gap-1"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Vertical Slice
+                      <Plus className="w-3.5 h-3.5" /> Add Feature Task
                     </button>
                     <button
                       onClick={() => setSelectedArtifact('specs/001-feature/tasks.md')}
@@ -5533,72 +7285,172 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 </div>
 
+                {sectionHighlights.sdd_tasks && (
+                  <SectionAutoFillHighlight
+                    sectionId="sdd_tasks"
+                    text={sectionHighlights.sdd_tasks}
+                    onClear={() => clearSectionHighlight('sdd_tasks')}
+                  />
+                )}
+
+                {isIntermediateMode && (
+                  <JargonTranslationCard
+                    term="Vertical Slices"
+                    explanation="Building one complete working mini-feature end-to-end (data, UI, and tests) at a time instead of unfinished horizontal layers."
+                  />
+                )}
+
                 <div className="space-y-3">
-                  {form.verticalSlices.map((slice, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-xl bg-slate-950 border border-slate-800 p-3.5 space-y-2.5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                  {form.verticalSlices.map((slice, idx) =>
+                    isIntermediateMode ? (
+                      <div
+                        key={idx}
+                        className="rounded-xl bg-slate-950 border border-slate-800 p-3.5 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-indigo-300">
+                              {slice.id}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                slice.mode === 'HITL'
+                                  ? 'bg-amber-500/15 text-amber-200 border-amber-500/40'
+                                  : 'bg-emerald-500/15 text-emerald-200 border-emerald-500/40'
+                              }`}
+                            >
+                              {slice.mode === 'HITL'
+                                ? '[HITL] Human Review'
+                                : '[AFK] Runs Automatically'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label={`Remove task ${slice.id}`}
+                            onClick={() => removeSlice(idx)}
+                            className="text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                            What does this checklist item build?
+                          </label>
                           <input
                             type="text"
-                            value={slice.id}
-                            onChange={(e) => editSlice(idx, 'id', e.target.value)}
-                            className="w-16 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs font-mono font-bold text-indigo-300"
+                            aria-label={`Task ${idx + 1} title`}
+                            value={slice.title}
+                            onChange={(e) =>
+                              updateIntermediateSlice(idx, { title: e.target.value })
+                            }
+                            className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                           />
-                          <select
-                            value={slice.mode}
-                            onChange={(e) => editSlice(idx, 'mode', e.target.value)}
-                            className="rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs text-white"
-                          >
-                            <option value="HITL">[HITL] Co-Piloted</option>
-                            <option value="AFK">[AFK] Autonomous</option>
-                          </select>
-                          <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={slice.mode === 'HITL'}
+                              onChange={(e) =>
+                                updateIntermediateSlice(idx, {
+                                  needsHumanReview: e.target.checked
+                                })
+                              }
+                              className="accent-amber-500 rounded"
+                            />
+                            <span>
+                              Needs human review (<code>[HITL]</code>) — uncheck to run
+                              automatically (<code>[AFK]</code>)
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={slice.parallel}
-                              onChange={(e) => editSlice(idx, 'parallel', e.target.checked)}
-                              className="accent-emerald-500"
+                              onChange={(e) =>
+                                updateIntermediateSlice(idx, { parallel: e.target.checked })
+                              }
+                              className="accent-emerald-500 rounded"
                             />
-                            <span>[P] Parallelizable</span>
+                            <span>Can run in parallel</span>
                           </label>
                         </div>
-                        <button
-                          onClick={() => removeSlice(idx)}
-                          className="text-slate-500 hover:text-rose-400"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                            Slice Title
-                          </span>
-                          <input
-                            type="text"
-                            value={slice.title}
-                            onChange={(e) => editSlice(idx, 'title', e.target.value)}
-                            className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white"
-                          />
+                        <p className="text-[11px] text-emerald-300/90 bg-emerald-950/30 border border-emerald-500/20 rounded-lg px-2.5 py-1.5">
+                          Auto-generated tracer bullet layers:{' '}
+                          <span className="font-mono text-emerald-200">{slice.layers}</span>
+                        </p>
+                      </div>
+                    ) : (
+                      <div
+                        key={idx}
+                        className="rounded-xl bg-slate-950 border border-slate-800 p-3.5 space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={slice.id}
+                              onChange={(e) => editSlice(idx, 'id', e.target.value)}
+                              className="w-16 rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs font-mono font-bold text-indigo-300"
+                            />
+                            <select
+                              value={slice.mode}
+                              onChange={(e) => editSlice(idx, 'mode', e.target.value)}
+                              className="rounded bg-slate-900 border border-slate-700 px-2 py-1 text-xs text-white"
+                            >
+                              <option value="HITL">[HITL] Co-Piloted</option>
+                              <option value="AFK">[AFK] Autonomous</option>
+                            </select>
+                            <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={slice.parallel}
+                                onChange={(e) => editSlice(idx, 'parallel', e.target.checked)}
+                                className="accent-emerald-500"
+                              />
+                              <span>[P] Parallelizable</span>
+                            </label>
+                          </div>
+                          <button
+                            onClick={() => removeSlice(idx)}
+                            className="text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div>
-                          <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                            End-to-End Integration Layers Included
-                          </span>
-                          <input
-                            type="text"
-                            value={slice.layers}
-                            onChange={(e) => editSlice(idx, 'layers', e.target.value)}
-                            className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs font-mono text-emerald-200"
-                          />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                              Slice Title
+                            </span>
+                            <input
+                              type="text"
+                              value={slice.title}
+                              onChange={(e) => editSlice(idx, 'title', e.target.value)}
+                              className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                              End-to-End Integration Layers Included
+                            </span>
+                            <input
+                              type="text"
+                              value={slice.layers}
+                              onChange={(e) => editSlice(idx, 'layers', e.target.value)}
+                              className="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs font-mono text-emerald-200"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
             </div>
@@ -5714,9 +7566,156 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               </div>
 
+              {/* Shareable Spec Report Action Bar */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedArtifact('FULL_BLUEPRINT_REPORT.md');
+                    void handleCopy(
+                      artifacts['FULL_BLUEPRINT_REPORT.md'].content,
+                      'FULL_BLUEPRINT_REPORT_COPY'
+                    );
+                  }}
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                  title="Copy the complete single-file Markdown blueprint report to your clipboard"
+                >
+                  {copiedKey === 'FULL_BLUEPRINT_REPORT_COPY' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>Copied Full Spec Report!</span>
+                    </>
+                  ) : (
+                    <span>📋 Copy Full Spec Report</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedArtifact('FULL_BLUEPRINT_REPORT.md');
+                    void handleDownloadFile(
+                      'FULL_BLUEPRINT_REPORT.md',
+                      artifacts['FULL_BLUEPRINT_REPORT.md'].content
+                    );
+                  }}
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                  title="Download FULL_BLUEPRINT_REPORT.md as a shareable Markdown file"
+                >
+                  <span>📄 Export Shareable Spec Report (.md)</span>
+                </button>
+              </div>
+
+              {/* Collapsible Prompt Readiness Scorecard */}
+              {(() => {
+                const passedCount = scorecardItems.filter((item) => item.passed).length;
+                const totalCount = scorecardItems.length;
+                const allPassed = passedCount === totalCount;
+                return (
+                  <div className="rounded-xl bg-slate-900/90 border border-slate-800/90 overflow-hidden">
+                    <button
+                      type="button"
+                      aria-expanded={showScorecard}
+                      aria-controls="prompt-readiness-checklist"
+                      onClick={() => setShowScorecard((prev) => !prev)}
+                      className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck
+                          className={`w-4 h-4 ${
+                            allPassed ? 'text-emerald-400' : 'text-amber-400'
+                          }`}
+                        />
+                        <span>Prompt Readiness Scorecard</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            allPassed
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          }`}
+                        >
+                          {passedCount}/{totalCount} Ready
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">
+                        {showScorecard ? 'Hide ▲' : 'Show ▼'}
+                      </span>
+                    </button>
+
+                    {showScorecard && (
+                      <div
+                        id="prompt-readiness-checklist"
+                        className="px-3 pb-2.5 pt-1 border-t border-slate-800/80 space-y-1.5"
+                      >
+                        {scorecardItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-2 text-[11px] py-0.5"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {item.passed ? (
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className="w-3.5 h-3.5 text-emerald-400 shrink-0"
+                                />
+                              ) : (
+                                <AlertTriangle
+                                  aria-hidden="true"
+                                  className="w-3.5 h-3.5 text-amber-400 shrink-0"
+                                />
+                              )}
+                              <span className="sr-only">
+                                {item.passed ? 'Passed: ' : 'Needs attention: '}
+                              </span>
+                              <span
+                                className={`truncate ${
+                                  item.passed ? 'text-slate-300' : 'text-amber-200 font-medium'
+                                }`}
+                              >
+                                {item.label}
+                              </span>
+                            </div>
+                            {!item.passed && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isSimpleMode && item.tab !== 'ideation' && item.tab !== 'guide') {
+                                    setViewMode('pro');
+                                  } else if (
+                                    isIntermediateMode &&
+                                    item.tab !== 'ideation' &&
+                                    item.tab !== 'prompt5' &&
+                                    item.tab !== 'agentsmd' &&
+                                    item.tab !== 'sdd'
+                                  ) {
+                                    setViewMode('pro');
+                                  }
+                                  setActiveTab(item.tab);
+                                  setMobilePane('editor');
+                                  setPendingScorecardFocus({
+                                    focusId: item.focusId,
+                                    token: Date.now()
+                                  });
+                                }}
+                                className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-semibold shrink-0 transition"
+                              >
+                                Fix Now
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* File Selector Pills */}
-              <div className="flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto pr-1">
-                {isSimpleDockFiltered
+              <div
+                className={`flex flex-wrap items-center gap-1.5 overflow-y-auto pr-1 ${
+                  isDockFiltered && isIntermediateMode ? 'max-h-48' : 'max-h-28'
+                }`}
+              >
+                {isDockFiltered && isSimpleMode
                   ? SIMPLE_ESSENTIAL_FILES.map(({ key: fileKey, label }) => {
                       const active = fileKey === currentArtifactKey;
                       return (
@@ -5733,52 +7732,110 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                         </button>
                       );
                     })
-                  : Object.entries(artifacts).map(([fileKey]) => {
-                      const active = fileKey === currentArtifactKey;
-                      return (
-                        <button
-                          key={fileKey}
-                          onClick={() => setSelectedArtifact(fileKey)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition flex items-center gap-1.5 border ${
-                            active
-                              ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
-                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/70'
-                          }`}
-                        >
-                          <span>{fileKey}</span>
-                        </button>
-                      );
-                    })}
-                {dummyProofMode && (
+                  : isDockFiltered && isIntermediateMode
+                    ? INTERMEDIATE_CORE_FILES.map(({ key: fileKey, label, subtitle }) => {
+                        const active = fileKey === currentArtifactKey;
+                        return (
+                          <button
+                            key={fileKey}
+                            onClick={() => setSelectedArtifact(fileKey)}
+                            title={subtitle}
+                            className={`px-2.5 py-1.5 rounded-lg text-left transition flex flex-col gap-0.5 border ${
+                              active
+                                ? 'bg-indigo-500/25 text-indigo-100 border-indigo-400/60'
+                                : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-800/70'
+                            }`}
+                          >
+                            <span className="text-[11px] font-mono font-semibold">{label}</span>
+                            <span className="text-[10px] text-slate-400 leading-tight">
+                              {subtitle}
+                            </span>
+                          </button>
+                        );
+                      })
+                    : Object.entries(artifacts).map(([fileKey, item]) => {
+                        const active = fileKey === currentArtifactKey;
+                        const tooltip =
+                          FILE_USAGE_GUIDE[fileKey]?.whatIsIt || item.title || fileKey;
+                        return (
+                          <button
+                            key={fileKey}
+                            onClick={() => setSelectedArtifact(fileKey)}
+                            title={tooltip}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition flex items-center gap-1.5 border ${
+                              active
+                                ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/70'
+                            }`}
+                          >
+                            <span>{fileKey}</span>
+                          </button>
+                        );
+                      })}
+                {!isProMode && (
                   <button
                     type="button"
                     onClick={() => setShowAllSimpleFiles((prev) => !prev)}
                     className="px-2 py-1 text-[11px] font-medium text-indigo-300 hover:text-indigo-200 underline underline-offset-2 transition"
                   >
                     {showAllSimpleFiles
-                      ? 'Show 3 essential files only'
+                      ? isSimpleMode
+                        ? 'Show 3 essential files only'
+                        : 'Show 6 core files only'
                       : 'Show all 14 advanced files'}
                   </button>
                 )}
               </div>
 
-              {/* Live Contract Diagnostics Bar (Pro Mode only) */}
-              {!dummyProofMode && (
-                <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
-                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                    <span className="text-slate-400">Primacy/Recency:</span>
-                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Locked
-                    </span>
+              {/* Live Prompt Health & AI Memory Bar (Intermediate & Pro Modes) */}
+              {!isSimpleMode && (
+                <div className="space-y-1.5 pt-1 text-[11px]">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div
+                      title="Top/Bottom Focus: Top-Priority Rules and Final Instructions are active, and rule files are within safe limits"
+                      className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-2 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-emerald-300">🟢 Rule Size</span>
+                        <span className="text-[10px] text-slate-400">Top/Bottom Focus: Ready</span>
+                      </div>
+                      <p className="text-slate-300 leading-snug">{diagnostics.ruleSizeMessage}</p>
+                    </div>
+                    <div
+                      title="Prompt size health check for fast, accurate AI responses"
+                      className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-2 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-cyan-300">🔵 Prompt Length</span>
+                      </div>
+                      <p className="text-slate-300 leading-snug">
+                        {diagnostics.promptLengthMessage}
+                      </p>
+                    </div>
+                    <div
+                      title="AI Memory Limits check so the AI never forgets your instructions"
+                      className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-2 space-y-0.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-purple-300">🟣 Memory Safety</span>
+                        <span className="text-[10px] text-slate-400">AI Memory Limits: OK</span>
+                      </div>
+                      <p className="text-slate-300 leading-snug">
+                        {diagnostics.memorySafetyMessage}
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                    <span className="text-slate-400">Est. Prompt:</span>
-                    <span className="text-cyan-300 font-mono">~{diagnostics.estTokens} tok</span>
-                  </div>
-                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                    <span className="text-slate-400">Context Rot Limit:</span>
-                    <span className="text-indigo-300 font-mono">&lt;120k OK</span>
-                  </div>
+                  {(diagnostics.isPromptLong ||
+                    !diagnostics.isRuleSizeSafe ||
+                    !diagnostics.isCopilotSizeSafe) && (
+                    <div className="rounded-lg bg-amber-500/15 border border-amber-400/40 px-3 py-2 text-amber-100 flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>
+                        Your prompt is getting a bit long; consider starting a fresh AI chat or
+                        trimming extra notes so the AI stays focused.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -5791,8 +7848,8 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </span>
             </div>
 
-            {/* Dummy-Proof "Where Does This File Go?" Banner */}
-            {dummyProofMode && (
+            {/* Plain-Language "Where Does This File Go?" Banner */}
+            {showPlainHelpers && (
               <div className="px-4 py-2.5 bg-indigo-950/40 border-b border-indigo-500/30 space-y-1 text-xs">
                 <p className="text-indigo-200 font-medium flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -5919,12 +7976,412 @@ describe('sanitizeBlueprintId', () => {
 });
 ~~~~~
 
+### `src/__tests__/electronMainSecurity.test.ts`
+
+~~~~~ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('electron', () => {
+  const ipcHandlers = new Map<string, Function>();
+  class BrowserWindow {
+    webContents = {
+      setWindowOpenHandler: vi.fn(),
+      on: vi.fn()
+    };
+    on = vi.fn();
+    loadFile = vi.fn();
+    loadURL = vi.fn();
+
+    constructor() {}
+    static getAllWindows() {
+      return [];
+    }
+  }
+
+  return {
+    app: {
+      isPackaged: true,
+      getPath: vi.fn().mockReturnValue('/mock/app/path'),
+      getName: vi.fn().mockReturnValue('MockApp'),
+      setName: vi.fn(),
+      whenReady: vi.fn().mockResolvedValue(undefined),
+      on: vi.fn(),
+      getAppPath: vi.fn().mockReturnValue('/mock/app')
+    },
+    ipcMain: {
+      handle: vi.fn((channel: string, handler: Function) => {
+        ipcHandlers.set(channel, handler);
+      }),
+      _getHandlers: () => ipcHandlers
+    },
+    dialog: {
+      showSaveDialog: vi.fn(),
+      showOpenDialog: vi.fn()
+    },
+    BrowserWindow,
+    shell: {
+      openExternal: vi.fn()
+    }
+  };
+});
+
+// Mock fs
+vi.mock('fs', () => ({
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  readFileSync: vi.fn(),
+  chmodSync: vi.fn(),
+  readdirSync: vi.fn(),
+  unlinkSync: vi.fn()
+}));
+
+// Mock os
+vi.mock('os', () => ({
+  homedir: vi.fn().mockReturnValue('/mock/home'),
+  type: vi.fn().mockReturnValue('MockOS'),
+  release: vi.fn().mockReturnValue('1.0.0')
+}));
+
+process.env.VITE_DEV_SERVER_URL = 'http://localhost:5173';
+process.env.NODE_ENV = 'development';
+
+import '../../electron/main';
+import { resolveSafeChildPath } from '../../electron/pathSecurity';
+import { ipcMain } from 'electron';
+
+describe('Electron Main Security', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const mockEvent = {
+    senderFrame: {
+      url: require('url').pathToFileURL(require('path').resolve(__dirname, '../../dist/index.html')).href
+    }
+  };
+
+  describe('resolveSafeChildPath guards', () => {
+    it('should reject relative paths containing .. traversal', () => {
+      expect(() => resolveSafeChildPath('/mock/root', '../outside.txt')).toThrow('Path traversal rejected');
+      expect(() => resolveSafeChildPath('/mock/root', 'folder/../../outside.txt')).toThrow('Path traversal rejected');
+    });
+
+    it('should reject absolute paths', () => {
+      expect(() => resolveSafeChildPath('/mock/root', '/absolute/path.txt')).toThrow('Absolute paths are not permitted');
+    });
+
+    it('should reject null bytes', () => {
+      expect(() => resolveSafeChildPath('/mock/root', 'file\0.txt')).toThrow('Invalid relative path: null byte');
+    });
+
+    it('should resolve safe relative paths', () => {
+      const result = resolveSafeChildPath('/mock/root', 'safe/file.txt');
+      expect(result).toBe('/mock/root/safe/file.txt');
+    });
+  });
+
+  describe('dialog:exportWorkspace handler', () => {
+    it('should handle empty or malformed payloads safely', async () => {
+      const handlers = (ipcMain as any)._getHandlers();
+      const handler = handlers.get('dialog:exportWorkspace');
+      expect(handler).toBeDefined();
+
+      const emptyFilesResult = await handler(mockEvent, { files: [] });
+      expect(emptyFilesResult).toEqual({ canceled: true, error: 'No artifact files provided' });
+
+      const nullPayloadResult = await handler(mockEvent, null);
+      expect(nullPayloadResult).toEqual({ canceled: true, error: 'No artifact files provided' });
+
+      const malformedPayloadResult = await handler(mockEvent, { files: "not an array" });
+      expect(malformedPayloadResult).toEqual({ canceled: true, error: 'No artifact files provided' });
+    });
+  });
+
+  describe('settings:setGeminiKey handler', () => {
+    it('should handle malformed payloads safely', async () => {
+      const handlers = (ipcMain as any)._getHandlers();
+      const handler = handlers.get('settings:setGeminiKey');
+      expect(handler).toBeDefined();
+
+      await expect(() => handler(mockEvent, null)).toThrow('API key must be a string');
+      await expect(() => handler(mockEvent, 123)).toThrow('API key must be a string');
+      await expect(() => handler(mockEvent, {})).toThrow('API key must be a string');
+    });
+  });
+});
+~~~~~
+
+### `src/__tests__/accessibilityContracts.test.tsx`
+
+~~~~~tsx
+import React from 'react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import SpecForgeStudio from '../SpecForgeStudio';
+
+// Setup mock desktopAPI to prevent errors during rendering
+function createMockDesktopAPI() {
+  return {
+    getPlatform: vi.fn().mockResolvedValue('darwin'),
+    getSettings: vi.fn().mockResolvedValue({ theme: 'system', geminiApiKey: '' }),
+    setGeminiApiKey: vi.fn().mockResolvedValue(undefined),
+    listBlueprints: vi.fn().mockResolvedValue([]),
+    saveBlueprint: vi.fn().mockResolvedValue(undefined),
+    deleteBlueprint: vi.fn().mockResolvedValue(undefined),
+    exportWorkspaceDialog: vi.fn().mockResolvedValue({ success: true, folderPath: '/mock/path' }),
+    generateGeminiStructured: vi.fn().mockResolvedValue({ artifacts: {} }),
+    openExternalUrl: vi.fn().mockResolvedValue(undefined),
+    getAppInfo: vi.fn().mockResolvedValue({ version: '1.0.0', name: 'SpecForge' }),
+    getGeminiSettings: vi.fn().mockResolvedValue({ geminiApiKey: '' })
+  };
+}
+
+describe('Accessibility Contracts', () => {
+  let mockApi: ReturnType<typeof createMockDesktopAPI>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mockApi = createMockDesktopAPI();
+    // @ts-ignore
+    window.desktopAPI = mockApi;
+  });
+
+  it('verifies that 3-way view mode selector buttons toggle aria-pressed', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const viewSelector = within(screen.getByRole('group', { name: /Workspace View Mode/i }));
+    const simpleBtn = viewSelector.getByRole('button', { name: 'Simple' });
+    const intermediateBtn = viewSelector.getByRole('button', { name: 'Intermediate' });
+    const proBtn = viewSelector.getByRole('button', { name: 'Pro' });
+
+    // Initial state: Simple mode should be active by default
+    expect(simpleBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(intermediateBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(proBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Click Intermediate
+    fireEvent.click(intermediateBtn);
+    expect(simpleBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(intermediateBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(proBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Click Pro
+    fireEvent.click(proBtn);
+    expect(simpleBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(intermediateBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(proBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // Click Simple again
+    fireEvent.click(simpleBtn);
+    expect(simpleBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(intermediateBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(proBtn.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('verifies Simple Mode platform, AI tool, and execution style pickers maintain accurate aria-pressed attributes', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Pickers are rendered in Simple Mode, which is the default.
+
+    // Platform Picker Test
+    // Default is "Web App"
+    const webBtn = screen.getByRole('button', { name: /Website \/ Web App/i });
+    const phoneBtn = screen.getByRole('button', { name: /Phone App/i });
+    expect(webBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(phoneBtn.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(phoneBtn);
+    expect(webBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(phoneBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // AI Tool Picker Test
+    // Default is Antigravity
+    const antigravityBtn = screen.getByRole('button', { name: /Antigravity/i });
+    const julesBtn = screen.getByRole('button', { name: /Google Jules/i });
+    expect(antigravityBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(julesBtn.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(julesBtn);
+    expect(antigravityBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(julesBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // Execution Style Picker Test
+    // Default is HITL
+    const hitlBtn = screen.getByRole('button', { name: /Step-by-Step with Me Watching/i });
+    const afkBtn = screen.getByRole('button', { name: /Build It Automatically in the Background/i });
+    expect(hitlBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(afkBtn.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(afkBtn);
+    expect(hitlBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(afkBtn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('verifies that primary inputs (#plain-idea-input, #user-persona-input) are accessible via their associated labels', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // plainIdea input check
+    // The label is: What should your app do?
+    const ideaInput = screen.getByLabelText(/What should your app do\?/i);
+    expect(ideaInput.id).toBe('plain-idea-input');
+    expect(ideaInput.tagName.toLowerCase()).toBe('textarea');
+
+    // userPersona input check
+    // The label is: Who will use this app?
+    const personaInput = screen.getByLabelText(/Who will use this app\?/i);
+    expect(personaInput.id).toBe('user-persona-input');
+    expect(personaInput.tagName.toLowerCase()).toBe('input');
+  });
+});
+~~~~~
+
+### `src/__tests__/artifactIntegrity.test.tsx`
+
+~~~~~tsx
+import React from 'react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import SpecForgeStudio from '../SpecForgeStudio';
+import type { DesktopAPI } from '../types/desktop';
+
+function createMockDesktopAPI(): DesktopAPI {
+  return {
+    isDesktop: true,
+    getAppInfo: vi.fn().mockResolvedValue({
+      name: 'SpecForge Studio',
+      version: '1.0.0',
+      platform: 'linux',
+      arch: 'x64',
+      osRelease: 'Linux 6.8.0',
+      userDataDir: '/home/test/.config/SpecForge Studio',
+      blueprintsDir: '/home/test/.config/SpecForge Studio/blueprints'
+    }),
+    copyToClipboard: vi.fn().mockResolvedValue(true),
+    saveFileDialog: vi.fn().mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/test.md'
+    }),
+    exportWorkspaceDialog: vi.fn().mockResolvedValue({
+      canceled: false,
+      basePath: '/tmp/export'
+    }),
+    listBlueprints: vi.fn().mockResolvedValue([]),
+    saveBlueprint: vi.fn().mockResolvedValue({ id: '1', title: 'test', updatedAt: 1, formState: '{}' }),
+    deleteBlueprint: vi.fn().mockResolvedValue(true),
+    exportBlueprintFile: vi.fn().mockResolvedValue({ canceled: false }),
+    importBlueprintFile: vi.fn().mockResolvedValue({ canceled: false }),
+    getGeminiSettings: vi.fn().mockResolvedValue({ hasKey: false, source: 'none' }),
+    setGeminiApiKey: vi.fn().mockResolvedValue({ hasKey: true, source: 'stored', maskedKey: 'AIza...' }),
+    generateGeminiStructured: vi.fn().mockResolvedValue({}),
+    openExternalUrl: vi.fn().mockResolvedValue(true),
+  };
+}
+
+describe('Artifact Integrity Test', () => {
+  let mockApi: DesktopAPI;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApi = createMockDesktopAPI();
+    window.desktopAPI = mockApi;
+    localStorage.clear();
+  });
+
+  it('validates structural integrity of all 15 generated output files in Pro mode', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const viewSelector = within(screen.getByRole('group', { name: /Workspace View Mode/i }));
+    const proBtn = viewSelector.getByRole('button', { name: 'Pro' });
+    fireEvent.click(proBtn);
+    expect(proBtn.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: /Export to Repo/i }));
+    await waitFor(() => {
+      expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
+    });
+
+    const payload = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const files = payload.files;
+
+    // 1. Verify all 15 expected files and their exact relative paths
+    expect(files).toHaveLength(15);
+    expect(files.map((f: any) => f.relativePath)).toEqual(
+      expect.arrayContaining([
+        'FULL_BLUEPRINT_REPORT.md',
+        'bootstrap-agy.sh',
+        'TASK_PROMPT.md',
+        'AGENTS.md',
+        'apps/mobile/AGENTS.md',
+        '.agents/rules/architecture-boundaries.md',
+        '.agents/skills/verify-vertical-slice/SKILL.md',
+        '.github/copilot-instructions.md',
+        '.github/instructions/domain-boundaries.instructions.md',
+        '.github/agents/implementation-planner.agent.md',
+        '.github/workflows/copilot-setup-steps.yml',
+        'jules-setup.sh',
+        '.specify/memory/constitution.md',
+        'specs/001-feature/spec.md',
+        'specs/001-feature/tasks.md'
+      ])
+    );
+
+    // Verify non-empty content
+    for (const file of files) {
+      expect(file.content.trim().length).toBeGreaterThan(0);
+    }
+
+    // 2. Verify bootstrap-agy.sh
+    const bootstrapAgy = files.find((f: any) => f.relativePath === 'bootstrap-agy.sh');
+    expect(bootstrapAgy).toBeDefined();
+    expect(bootstrapAgy.content).toMatch(/mkdir -p/);
+
+    // Count opening heredocs with EOF and closing EOFs
+    const openingEOF = (bootstrapAgy.content.match(/<<\s*['"]?EOF[^'"]*['"]?/g) || []).length;
+    const closingEOF = (bootstrapAgy.content.match(/^EOF_.*$/gm) || []).length;
+
+    expect(openingEOF).toBeGreaterThan(0);
+    expect(openingEOF).toEqual(closingEOF);
+
+    // 3. Verify Antigravity rule & AGENTS.md size limits (< 24,000 bytes)
+    const agyRuleFile = files.find((f: any) =>
+      f.relativePath.startsWith('.agents/rules/') && f.relativePath.endsWith('.md')
+    );
+    expect(agyRuleFile).toBeDefined();
+    const agyRuleBytes = new Blob([agyRuleFile.content]).size;
+    expect(agyRuleBytes).toBeLessThan(24000);
+
+    const agentsMd = files.find((f: any) => f.relativePath === 'AGENTS.md');
+    expect(agentsMd).toBeDefined();
+    const agentsMdBytes = new Blob([agentsMd.content]).size;
+    expect(agentsMdBytes).toBeLessThan(24000);
+  });
+});
+~~~~~
+
 ### `src/__tests__/SpecForgeStudio.test.tsx`
 
 ~~~~~tsx
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { Lexer } from 'marked';
 import SpecForgeStudio from '../SpecForgeStudio';
 import type { DesktopAPI } from '../types/desktop';
 
@@ -5948,8 +8405,8 @@ function createMockDesktopAPI(): DesktopAPI {
     exportWorkspaceDialog: vi.fn().mockResolvedValue({
       canceled: false,
       targetDir: '/home/test/my-repo',
-      writtenCount: 14,
-      writtenFiles: ['AGENTS.md', 'TASK_PROMPT.md']
+      writtenCount: 15,
+      writtenFiles: ['AGENTS.md', 'TASK_PROMPT.md', 'FULL_BLUEPRINT_REPORT.md']
     }),
     listBlueprints: vi.fn().mockResolvedValue([]),
     saveBlueprint: vi.fn().mockImplementation(async (bp) => ({
@@ -5993,7 +8450,7 @@ describe('SpecForgeStudio Desktop UI', () => {
     });
   });
 
-  it('exports all 14 generated files in Simple Mode via desktopAPI.exportWorkspaceDialog', async () => {
+  it('exports all 15 generated files in Simple Mode via desktopAPI.exportWorkspaceDialog', async () => {
     render(<SpecForgeStudio />);
     const exportBtn = screen.getByRole('button', { name: /Export to Repo/i });
     fireEvent.click(exportBtn);
@@ -6002,7 +8459,12 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
     });
     const callArg = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArg.files).toHaveLength(14);
+    expect(callArg.files).toHaveLength(15);
+    expect(
+      callArg.files.some(
+        (f: { relativePath: string }) => f.relativePath === 'FULL_BLUEPRINT_REPORT.md'
+      )
+    ).toBe(true);
     expect(callArg.files.some((f: { relativePath: string }) => f.relativePath === 'AGENTS.md')).toBe(
       true
     );
@@ -6023,8 +8485,15 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(mockApi.listBlueprints).toHaveBeenCalled();
     });
 
-    // Header toggle & simplified navigation tabs
-    expect(screen.getByRole('button', { name: /Simple Mode \(No-Code\)/i })).toBeTruthy();
+    const viewSelector = within(screen.getByRole('group', { name: /Workspace View Mode/i }));
+    const simpleBtn = viewSelector.getByRole('button', { name: 'Simple' });
+    const intermediateBtn = viewSelector.getByRole('button', { name: 'Intermediate' });
+    const proBtn = viewSelector.getByRole('button', { name: 'Pro' });
+
+    // Header 3-way selector & simplified navigation tabs
+    expect(simpleBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(intermediateBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(proBtn.getAttribute('aria-pressed')).toBe('false');
     expect(screen.getByRole('button', { name: /1\. Describe Your App/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /2\. How to Use Your Files/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /2\. Task Prompt Builder/i })).toBeNull();
@@ -6040,7 +8509,8 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(screen.getByRole('button', { name: /🤖 2\. Project Rules \(AGENTS\.md\)/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /⚡ 3\. 1-Click Auto-Setup/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '.github/copilot-instructions.md' })).toBeNull();
-    expect(screen.queryByText(/Primacy\/Recency:/i)).toBeNull();
+    expect(screen.queryByText(/Top\/Bottom Focus:/i)).toBeNull();
+    expect(screen.queryByText(/AI Memory Limits:/i)).toBeNull();
 
     // Expand all 14 files temporarily inside Simple Mode
     fireEvent.click(screen.getByRole('button', { name: /Show all 14 advanced files/i }));
@@ -6048,14 +8518,131 @@ describe('SpecForgeStudio Desktop UI', () => {
     fireEvent.click(screen.getByRole('button', { name: /Show 3 essential files only/i }));
     expect(screen.queryByRole('button', { name: '.github/copilot-instructions.md' })).toBeNull();
 
-    // Switch to Pro Mode via header button
-    fireEvent.click(screen.getByRole('button', { name: /Simple Mode \(No-Code\)/i }));
-    expect(screen.getByRole('button', { name: /Pro Mode \(All 14 Files\)/i })).toBeTruthy();
+    // Switch to Pro Mode via 3-way selector
+    fireEvent.click(proBtn);
+    expect(proBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(simpleBtn.getAttribute('aria-pressed')).toBe('false');
     expect(screen.getByRole('button', { name: /2\. Task Prompt Builder \(5 Sections\)/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /3\. AGENTS\.md \(Project Rules\)/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /4\. Copilot, Antigravity & Jules Files/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /5\. Spec & Task Slices/i })).toBeTruthy();
-    expect(screen.getByText(/Primacy\/Recency:/i)).toBeTruthy();
+    expect(screen.getByText(/Top\/Bottom Focus:/i)).toBeTruthy();
+    expect(screen.getByText(/AI Memory Limits:/i)).toBeTruthy();
+
+    // Verify renamed professional headings across Pro tabs
+    fireEvent.click(screen.getByRole('button', { name: /2\. Task Prompt Builder \(5 Sections\)/i }));
+    expect(
+      screen.getByText(/Top-Priority Rules \(AI Attention Top Section\)/i)
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Final Instructions \(AI Attention Bottom Section\)/i)
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /5\. Spec & Task Slices/i }));
+    expect(
+      screen.getByText(/Step-by-Step Goal Checks \(When\/Then Rules\)/i)
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Step-by-Step Task Breakdown \(Full Features, Not Horizontal Layers\)/i)
+    ).toBeTruthy();
+  });
+
+  it('supports Intermediate Mode with 4 tabs, jargon translation cards, and 6 core dock files while exporting all 14 files', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const viewSelector = within(screen.getByRole('group', { name: /Workspace View Mode/i }));
+    const intermediateBtn = viewSelector.getByRole('button', { name: 'Intermediate' });
+    fireEvent.click(intermediateBtn);
+    expect(intermediateBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // Intermediate Mode shows 4 essential tabs and hides Guide & Platform Files tabs
+    expect(screen.getByRole('button', { name: /1\. Idea & AI Setup/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /2\. Custom AI Prompt/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /3\. Project Rules/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /4\. Feature Checklist/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /4\. Copilot, Antigravity & Jules Files/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /0\. How to Use/i })).toBeNull();
+
+    // Right-Hand Artifact Dock shows 6 core files with subtitles (and hides extra files unless expanded)
+    expect(screen.getByRole('button', { name: /TASK_PROMPT\.md Your main AI task prompt/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /AGENTS\.md Permanent project rules/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /spec\.md Feature requirements \(EARS\)/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /tasks\.md Step-by-step feature slices/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /constitution\.md Core non-negotiable laws/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /bootstrap-agy\.sh 1-click Antigravity setup/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '.github/copilot-instructions.md' })).toBeNull();
+
+    // Navigate to Custom AI Prompt & verify JargonTranslationCard explanations
+    fireEvent.click(screen.getByRole('button', { name: /2\. Custom AI Prompt/i }));
+    expect(screen.getByText(/Plain-English Guide: Primacy Anchor/i)).toBeTruthy();
+    expect(screen.getByText(/Plain-English Guide: State Invariants & TurboModules/i)).toBeTruthy();
+    expect(screen.getByText(/Plain-English Guide: Recency Anchor/i)).toBeTruthy();
+
+    // Navigate to Feature Checklist & verify EARS + Vertical Slices jargon cards
+    fireEvent.click(screen.getByRole('button', { name: /4\. Feature Checklist/i }));
+    expect(screen.getByText(/Plain-English Guide: EARS Notation/i)).toBeTruthy();
+    expect(screen.getByText(/Plain-English Guide: Vertical Slices/i)).toBeTruthy();
+
+    // Export to Repo still exports all 15 generated files
+    fireEvent.click(screen.getByRole('button', { name: /Export to Repo/i }));
+    await waitFor(() => {
+      expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
+    });
+    const payload = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(payload.files).toHaveLength(15);
+  });
+
+  it('translates Intermediate Mode plain-English rule checkboxes and simplified task slicer into technical artifacts', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const viewSelector = within(screen.getByRole('group', { name: /Workspace View Mode/i }));
+    fireEvent.click(viewSelector.getByRole('button', { name: 'Intermediate' }));
+
+    // Custom AI Prompt: Plain-English Rule Builder replaces raw textareas
+    fireEvent.click(screen.getByRole('button', { name: /2\. Custom AI Prompt/i }));
+    expect(
+      screen.queryByLabelText(/State Placement & Architectural Boundary Rules/i)
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByLabelText(/Keep data fetching separate from visual design/i)
+    );
+    fireEvent.click(
+      screen.getByLabelText(/Require automated tests to pass before finishing tasks/i)
+    );
+    fireEvent.click(
+      screen.getByLabelText(/Prevent file path hacks or security holes/i)
+    );
+
+    const promptPreview = document.querySelector('pre');
+    expect(promptPreview?.textContent).toContain('Separate server data fetching from client UI rendering');
+    expect(promptPreview?.textContent).toContain('Gate every task completion on passing typecheck');
+    expect(promptPreview?.textContent).toContain('Enforce strict path canonicalization');
+
+    // Feature Checklist: Simplified Task Slicer updates title, HITL/AFK mode, and auto-generated layers
+    fireEvent.click(screen.getByRole('button', { name: /4\. Feature Checklist/i }));
+    const firstTitleInput = screen.getByLabelText('Task 1 title');
+    fireEvent.change(firstTitleInput, { target: { value: 'Auth Token Verification Slice' } });
+
+    const hitlCheckboxes = screen.getAllByLabelText(/Needs human review \(\[HITL\]\)/i);
+    // Toggle first slice mode
+    const initialChecked = (hitlCheckboxes[0] as HTMLInputElement).checked;
+    fireEvent.click(hitlCheckboxes[0]);
+
+    // Preview tasks.md to verify output updates with title, mode tag, and auto-generated layers
+    fireEvent.click(screen.getByRole('button', { name: /tasks\.md Step-by-step feature slices/i }));
+    const tasksPreview = document.querySelector('pre');
+    expect(tasksPreview?.textContent).toContain('Auth Token Verification Slice');
+    expect(tasksPreview?.textContent).toContain('Auth Schema + Domain Service');
+    expect(tasksPreview?.textContent).toContain(initialChecked ? '[AFK]' : '[HITL]');
   });
 
   it('uses Offline Smart Templates when clicking Turn My Idea Into AI Instructions without an API key', async () => {
@@ -6098,6 +8685,76 @@ describe('SpecForgeStudio Desktop UI', () => {
     );
   });
 
+  it('expands input text via ✨ Auto-Expand Options, highlights newly added lines, and clears highlight on Accept All', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const ideaBox = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaBox, {
+      target: { value: 'Build a personal budget planner' }
+    });
+
+    const expandBtn = screen.getByRole('button', { name: /✨ Auto-Expand Options/i });
+    fireEvent.click(expandBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('expanded-highlight-plainIdea')).toBeTruthy();
+    });
+
+    expect(ideaBox.value).toContain('Build a personal budget planner');
+    expect(ideaBox.value).toContain('Provide clear loading, empty, and error feedback states');
+    expect(screen.getByText(/Newly Expanded Options/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Accept All/i }));
+    expect(screen.queryByTestId('expanded-highlight-plainIdea')).toBeNull();
+    // Expanded text remains locked in the textarea
+    expect(ideaBox.value).toContain('Provide clear loading, empty, and error feedback states');
+  });
+
+  it('auto-fills individual prompt & SDD sections with soft amber highlight review and displays plain-English hover tooltips', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const ideaBox = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaBox, {
+      target: { value: 'Build an encrypted medical appointment scheduler for clinics' }
+    });
+
+    // Switch to Pro mode and open the Task Prompt Builder tab
+    fireEvent.click(screen.getByRole('button', { name: /^Pro$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /2\. Task Prompt Builder/i }));
+
+    // Verify helpful hover tooltip is present on Section 1 heading
+    expect(
+      screen.getByTitle(
+        /Putting your most important instructions at the top of the prompt where AI reads them best\./i
+      )
+    ).toBeTruthy();
+
+    // Click ✨ Auto-Fill Section on Section 1 (role_objective)
+    const section1Btn = screen.getByTestId('autofill-section-btn-role_objective');
+    fireEvent.click(section1Btn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('section-autofill-highlight-role_objective')).toBeTruthy();
+    });
+
+    const highlightBox = screen.getByTestId('section-autofill-highlight-role_objective');
+    expect(highlightBox.textContent).toContain(
+      'Architect and ship: Build an encrypted medical appointment scheduler for clinics'
+    );
+
+    // Dismiss highlight via Accept All
+    fireEvent.click(screen.getByRole('button', { name: /Accept All/i }));
+    expect(screen.queryByTestId('section-autofill-highlight-role_objective')).toBeNull();
+  });
+
   it('opens AI Settings modal and saves Gemini API key via desktopAPI', async () => {
     render(<SpecForgeStudio />);
     fireEvent.click(screen.getByTitle(/Configure optional Gemini API key/i));
@@ -6107,6 +8764,178 @@ describe('SpecForgeStudio Desktop UI', () => {
 
     await waitFor(() => {
       expect(mockApi.setGeminiApiKey).toHaveBeenCalledWith('AIzaTestKey1234');
+    });
+  });
+
+  it('saves, loads, resets, and deletes project presets via localStorage (specforge_saved_presets_v1)', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Change plainIdea to a custom value
+    const ideaTextarea = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Custom Fintech Ledger Idea for Preset Test' }
+    });
+    expect(ideaTextarea.value).toBe('Custom Fintech Ledger Idea for Preset Test');
+
+    // Open Saved Projects modal
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    fireEvent.click(savedProjectsBtn);
+
+    expect(screen.getByText('Saved Project Presets')).toBeTruthy();
+
+    // Save Current as Preset
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'Fintech Preset Alpha' } });
+
+    const savePresetBtn = screen.getByRole('button', { name: /Save Current as Preset/i });
+    fireEvent.click(savePresetBtn);
+
+    // Verify localStorage updated
+    const rawSaved = localStorage.getItem('specforge_saved_presets_v1');
+    expect(rawSaved).toBeTruthy();
+    const parsedSaved = JSON.parse(rawSaved!);
+    expect(parsedSaved).toHaveLength(1);
+    expect(parsedSaved[0].name).toBe('Fintech Preset Alpha');
+    expect(parsedSaved[0].formState.plainIdea).toBe('Custom Fintech Ledger Idea for Preset Test');
+
+    // Reset to Default
+    const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
+    fireEvent.click(resetBtn);
+
+    // Verify plainIdea was reset to the default value
+    expect(ideaTextarea.value).not.toBe('Custom Fintech Ledger Idea for Preset Test');
+    expect(ideaTextarea.value).toContain('team invoice approval workflow');
+
+    // Re-open Saved Projects modal and Load the saved preset
+    fireEvent.click(screen.getByRole('button', { name: /📂 Saved Projects \(1\)/i }));
+    const loadPresetBtn = screen.getByRole('button', { name: /Load preset Fintech Preset Alpha/i });
+    fireEvent.click(loadPresetBtn);
+
+    // Verify custom plainIdea is restored
+    expect(ideaTextarea.value).toBe('Custom Fintech Ledger Idea for Preset Test');
+
+    // Re-open Saved Projects modal and Delete the preset
+    fireEvent.click(screen.getByRole('button', { name: /📂 Saved Projects \(1\)/i }));
+    const deletePresetBtn = screen.getByRole('button', {
+      name: /Delete preset Fintech Preset Alpha/i
+    });
+    fireEvent.click(deletePresetBtn);
+
+    expect(JSON.parse(localStorage.getItem('specforge_saved_presets_v1')!)).toHaveLength(0);
+    expect(screen.getByText(/No project presets saved yet/i)).toBeTruthy();
+  });
+
+  it('rejects malformed saved presets with invalid array item schemas on startup', async () => {
+    localStorage.setItem(
+      'specforge_saved_presets_v1',
+      JSON.stringify([
+        {
+          id: 'bad-preset-1',
+          name: 'Corrupted EARS Preset',
+          projectTitle: 'Corrupted',
+          updatedAt: Date.now(),
+          formState: {
+            earsSpecs: ['not-an-object-item']
+          }
+        }
+      ])
+    );
+
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i })).toBeTruthy();
+  });
+
+  it('generates, copies, and exports a valid Markdown Shareable Spec Report (FULL_BLUEPRINT_REPORT.md)', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const copyReportBtn = screen.getByRole('button', { name: /📋 Copy Full Spec Report/i });
+    const exportReportBtn = screen.getByRole('button', {
+      name: /📄 Export Shareable Spec Report \(\.md\)/i
+    });
+    expect(copyReportBtn).toBeTruthy();
+    expect(exportReportBtn).toBeTruthy();
+
+    fireEvent.click(copyReportBtn);
+
+    await waitFor(() => {
+      expect(mockApi.copyToClipboard).toHaveBeenCalledTimes(1);
+    });
+
+    const copiedMarkdown = (mockApi.copyToClipboard as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(typeof copiedMarkdown).toBe('string');
+    expect(copiedMarkdown).toContain('Full Architectural & SDD Specification Report');
+    expect(copiedMarkdown).toContain('## 📋 1. Project Overview & Target Stack');
+    expect(copiedMarkdown).toContain('## 🎯 2. 5-Section Task Prompt (`TASK_PROMPT.md`)');
+    expect(copiedMarkdown).toContain('## 🤖 3. Repository Agent Contract (`AGENTS.md`)');
+    expect(copiedMarkdown).toContain(
+      '## ⚖️ 4. Project Constitution (`.specify/memory/constitution.md`)'
+    );
+    expect(copiedMarkdown).toContain(
+      '## 📐 5. EARS Feature Specification (`specs/001-feature/spec.md`)'
+    );
+    expect(copiedMarkdown).toContain(
+      '## 🧩 6. Vertical-Slice Task Breakdown (`specs/001-feature/tasks.md`)'
+    );
+
+    const tokens = Lexer.lex(copiedMarkdown);
+    expect(tokens.length).toBeGreaterThan(10);
+    const headings = tokens.filter((t) => t.type === 'heading');
+    expect(headings.length).toBeGreaterThanOrEqual(7);
+
+    fireEvent.click(exportReportBtn);
+
+    await waitFor(() => {
+      expect(mockApi.saveFileDialog).toHaveBeenCalledWith(
+        'FULL_BLUEPRINT_REPORT.md',
+        copiedMarkdown
+      );
+    });
+  });
+
+  it('evaluates Prompt Readiness Scorecard live and navigates/focuses missing fields on Fix Now', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Initially all 6 checks pass with the default preset
+    expect(screen.getByText('Prompt Readiness Scorecard')).toBeTruthy();
+    expect(screen.getByText('6/6 Ready')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fix Now' })).toBeNull();
+
+    // Clear the plain-language idea in Simple Mode so the first check fails
+    const plainIdeaInput = document.getElementById('plain-idea-input') as HTMLTextAreaElement;
+    expect(plainIdeaInput).toBeTruthy();
+    fireEvent.change(plainIdeaInput, { target: { value: 'Too short' } });
+
+    expect(screen.getByText('5/6 Ready')).toBeTruthy();
+    const fixButtons = screen.getAllByRole('button', { name: 'Fix Now' });
+    expect(fixButtons).toHaveLength(1);
+
+    // Switch to another tab first, then click Fix Now to verify it switches back to ideation and focuses the field
+    fireEvent.click(screen.getByRole('button', { name: /2\. How to Use Your Files/i }));
+    expect(document.getElementById('plain-idea-input')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fix Now' }));
+
+    await waitFor(() => {
+      const focusedEl = document.getElementById('plain-idea-input');
+      expect(focusedEl).toBeTruthy();
+      expect(document.activeElement).toBe(focusedEl);
     });
   });
 });
