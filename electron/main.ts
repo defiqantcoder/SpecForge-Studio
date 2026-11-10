@@ -1,6 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 import * as os from 'os';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -126,17 +127,20 @@ function maskKey(key: string): string {
  * Helper to perform an atomic file write with optional chmod.
  */
 function atomicWriteFileSync(filePath: string, content: string, mode?: number): void {
-  const tempPath = `${filePath}.tmp.${Date.now()}`;
+  const tempPath = `${filePath}.tmp.${randomUUID()}`;
+  let created = false;
   try {
-    if (mode !== undefined) {
-      fs.writeFileSync(tempPath, content, { encoding: 'utf8', mode });
-    } else {
-      fs.writeFileSync(tempPath, content, 'utf8');
+    const fd = fs.openSync(tempPath, 'wx', mode);
+    created = true;
+    try {
+      fs.writeFileSync(fd, content, 'utf8');
+    } finally {
+      fs.closeSync(fd);
     }
     fs.renameSync(tempPath, filePath);
   } catch (err) {
     try {
-      if (fs.existsSync(tempPath)) {
+      if (created) {
         fs.unlinkSync(tempPath);
       }
     } catch {
@@ -153,7 +157,7 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
 
   if (!trimmed) {
     if (fs.existsSync(settingsPath)) {
-      atomicWriteFileSync(settingsPath, JSON.stringify({}, null, 2));
+      atomicWriteFileSync(settingsPath, JSON.stringify({}, null, 2), 0o600);
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {

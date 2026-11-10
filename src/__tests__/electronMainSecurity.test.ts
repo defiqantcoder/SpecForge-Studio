@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('electron', () => {
   const ipcHandlers = new Map<string, Function>();
@@ -37,6 +37,7 @@ vi.mock('electron', () => {
       showSaveDialog: vi.fn(),
       showOpenDialog: vi.fn()
     },
+    safeStorage: { isEncryptionAvailable: vi.fn().mockReturnValue(false) },
     BrowserWindow,
     shell: {
       openExternal: vi.fn()
@@ -49,6 +50,9 @@ vi.mock('fs', () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   writeFileSync: vi.fn(),
+  openSync: vi.fn(),
+  closeSync: vi.fn(),
+  renameSync: vi.fn(),
   readFileSync: vi.fn(),
   chmodSync: vi.fn(),
   readdirSync: vi.fn(),
@@ -67,7 +71,10 @@ process.env.NODE_ENV = 'development';
 
 import '../../electron/main';
 import { resolveSafeChildPath } from '../../electron/pathSecurity';
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
+
 
 describe('Electron Main Security', () => {
   beforeEach(() => {
@@ -114,6 +121,83 @@ describe('Electron Main Security', () => {
 
       const malformedPayloadResult = await handler(mockEvent, { files: "not an array" });
       expect(malformedPayloadResult).toEqual({ canceled: true, error: 'No artifact files provided' });
+    });
+  });
+
+  describe('settings file writes', () => {
+    let realFs: typeof import('fs');
+    let directory: string;
+    let settingsPath: string;
+    const save = (key: string) => (ipcMain as any)._getHandlers().get('settings:setGeminiKey')(mockEvent, key);
+
+    beforeEach(async () => {
+      realFs = await vi.importActual<typeof import('fs')>('fs');
+      directory = realFs.mkdtempSync('/tmp/specforge-settings-');
+      settingsPath = path.join(directory, 'settings.json');
+      vi.mocked(app.getPath).mockReturnValue(directory);
+      for (const name of ['existsSync', 'mkdirSync', 'openSync', 'closeSync', 'writeFileSync', 'renameSync', 'unlinkSync'] as const) {
+        vi.mocked(fs[name]).mockImplementation(realFs[name] as any);
+      }
+    });
+
+    afterEach(() => {
+      vi.mocked(app.getPath).mockReturnValue('/mock/app/path');
+      realFs.rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('uses distinct temporary paths even when the clock is fixed', () => {
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(1234);
+      try {
+        save('first-key');
+        save('second-key');
+        const paths = vi.mocked(fs.openSync).mock.calls.map(([file]) => file);
+        expect(new Set(paths).size).toBe(2);
+        expect(fs.openSync).toHaveBeenCalledWith(expect.any(String), 'wx', 0o600);
+        expect(JSON.parse(realFs.readFileSync(settingsPath, 'utf8'))).toEqual({ geminiKeyPlain: 'second-key' });
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it('preserves an existing temporary file when exclusive creation fails', () => {
+      let collisionPath = '';
+      vi.mocked(fs.openSync).mockImplementationOnce((file, flags, mode) => {
+        collisionPath = String(file);
+        realFs.writeFileSync(file, 'other writer');
+        return realFs.openSync(file, flags, mode);
+      });
+      realFs.writeFileSync(settingsPath, 'original settings');
+      expect(() => save('new-key')).toThrow();
+      expect(realFs.readFileSync(collisionPath, 'utf8')).toBe('other writer');
+      expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('original settings');
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it.each(['writeFileSync', 'renameSync'] as const)('cleans up its own file after %s fails', (operation) => {
+      realFs.writeFileSync(settingsPath, 'original settings');
+      vi.mocked(fs[operation]).mockImplementationOnce(() => { throw new Error('injected failure'); });
+      expect(() => save('new-key')).toThrow('injected failure');
+      expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('original settings');
+      expect(realFs.readdirSync(directory)).toEqual(['settings.json']);
+      expect(fs.closeSync).toHaveBeenCalledTimes(1);
+      expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears settings with private permissions before atomic replacement under a permissive umask', () => {
+      realFs.writeFileSync(settingsPath, 'original settings', { mode: 0o644 });
+      const previousUmask = process.umask(0);
+      vi.mocked(fs.renameSync).mockImplementationOnce((source, destination) => {
+        expect(realFs.statSync(source).mode & 0o777).toBe(0o600);
+        expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('original settings');
+        realFs.renameSync(source, destination);
+      });
+      try {
+        save('');
+        expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('{}');
+        expect(realFs.statSync(settingsPath).mode & 0o777).toBe(0o600);
+      } finally {
+        process.umask(previousUmask);
+      }
     });
   });
 
