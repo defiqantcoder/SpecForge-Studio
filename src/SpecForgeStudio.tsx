@@ -430,11 +430,19 @@ async function callGeminiStructured(
   );
 }
 
+const SIMPLE_ESSENTIAL_FILES: Array<{ key: string; label: string }> = [
+  { key: 'TASK_PROMPT.md', label: '📋 1. Copy-Paste AI Prompt' },
+  { key: 'AGENTS.md', label: '🤖 2. Project Rules (AGENTS.md)' },
+  { key: 'bootstrap-agy.sh', label: '⚡ 3. 1-Click Auto-Setup' }
+];
+
 export default function SpecForgeStudio() {
-  // Active workspace tab
-  const [activeTab, setActiveTab] = useState('guide');
-  // Dummy-proof Beginner Helper banner toggle
+  // Active workspace tab ('ideation' first in Simple Mode)
+  const [activeTab, setActiveTab] = useState('ideation');
+  // Simple Mode (dummyProofMode=true) vs Pro Mode (dummyProofMode=false)
   const [dummyProofMode, setDummyProofMode] = useState(true);
+  // Optional toggle inside Simple Mode dock to peek at all 14 files
+  const [showAllSimpleFiles, setShowAllSimpleFiles] = useState(false);
   // Mobile view switcher ('editor' | 'preview') for small screens
   const [mobilePane, setMobilePane] = useState('editor');
   // Active preview file in the right-hand artifact dock
@@ -804,12 +812,46 @@ export default function SpecForgeStudio() {
   // ============================================================================
   // AI MAGIC AUTO-ARCHITECT (Transforms plain language into all sections)
   // ============================================================================
+  const applyOfflineSmartTemplates = () => {
+    const idea = form.plainIdea.trim();
+    const persona = (form.userPersona || 'end users').trim();
+    const shortIdea = idea.length > 90 ? `${idea.slice(0, 87)}...` : idea;
+
+    setForm((prev: any) => {
+      const existingEars = Array.isArray(prev.earsSpecs) ? [...prev.earsSpecs] : [];
+      const firstEars = {
+        when: `a user interacts with ${shortIdea}`,
+        shall: `complete the workflow reliably for ${persona} with clear status feedback and error recovery`
+      };
+      const updatedEars =
+        existingEars.length > 0 ? [firstEars, ...existingEars.slice(1)] : [firstEars];
+
+      return {
+        ...prev,
+        objective: `Build and verify: ${idea} (for ${persona}).`,
+        observableOutcome: `Users (${persona}) can complete "${shortIdea}" end-to-end with validated inputs, clear loading/empty/error states, and passing automated tests.`,
+        agentsProduct: `${idea} — built for ${persona}.`,
+        earsSpecs: updatedEars
+      };
+    });
+
+    setStatusMessage({
+      type: 'success',
+      text: 'Built your custom AI instructions using Offline Smart Templates! (Add a free Gemini key in AI Key settings anytime for deeper AI generation.)'
+    });
+  };
+
   const handleMagicAutoArchitect = async () => {
     if (!form.plainIdea.trim()) {
       setStatusMessage({
         type: 'warning',
         text: 'Please describe your plain-language app or feature idea first!'
       });
+      return;
+    }
+
+    if (window.desktopAPI && !geminiSettings.hasKey) {
+      applyOfflineSmartTemplates();
       return;
     }
 
@@ -934,11 +976,8 @@ Execution Preference: ${form.executionMode}`;
         type: 'success',
         text: 'AI Auto-Architect complete! All 5 Prompt Sections, 10 AGENTS.md Sections, and SDD Artifacts have been populated.'
       });
-    } catch (err: any) {
-      setStatusMessage({
-        type: 'error',
-        text: `Could not reach Gemini API (${err?.message || err}). You can still use all presets and manual builders seamlessly.`
-      });
+    } catch {
+      applyOfflineSmartTemplates();
     } finally {
       setIsGeneratingAll(false);
     }
@@ -1554,8 +1593,25 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     };
   }, [form]);
 
-  // Ensure selectedArtifact key exists when dynamic paths change
-  const currentArtifactKey = artifacts[selectedArtifact] ? selectedArtifact : 'TASK_PROMPT.md';
+  const isSimpleDockFiltered = dummyProofMode && !showAllSimpleFiles;
+  const simpleAllowedKeys = SIMPLE_ESSENTIAL_FILES.map((item) => item.key);
+
+  const handleToggleSimpleMode = (nextSimple: boolean) => {
+    setDummyProofMode(nextSimple);
+    if (nextSimple) {
+      setShowAllSimpleFiles(false);
+      if (activeTab !== 'ideation' && activeTab !== 'guide') {
+        setActiveTab('ideation');
+      }
+    }
+  };
+
+  // Ensure selectedArtifact key exists when dynamic paths or Simple Mode filter change
+  const currentArtifactKey =
+    artifacts[selectedArtifact] &&
+    (!isSimpleDockFiltered || simpleAllowedKeys.includes(selectedArtifact))
+      ? selectedArtifact
+      : 'TASK_PROMPT.md';
   const currentArtifact = artifacts[currentArtifactKey];
   const currentFileGuide = FILE_USAGE_GUIDE[currentArtifactKey] || {
     whatIsIt: 'Auto-generated agent instruction or configuration file tailored to your project.',
@@ -1762,18 +1818,20 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
           {/* Right Toolbar: Beginner Explanations Toggle, Presets, Blueprints, AI Key, Export */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Dummy-Proof Mode Toggle */}
+            {/* Simple Mode / Pro Mode Toggle */}
             <button
-              onClick={() => setDummyProofMode(!dummyProofMode)}
+              onClick={() => handleToggleSimpleMode(!dummyProofMode)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border ${
                 dummyProofMode
                   ? 'bg-amber-500/20 text-amber-200 border-amber-400/50'
-                  : 'bg-slate-800 text-slate-400 border-slate-700'
+                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
               }`}
-              title="Toggle plain-English explanations and 1-click starter buttons"
+              title="Switch between Simple Mode (No-Code) and Pro Mode (All 14 Files)"
             >
               <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-              <span>{dummyProofMode ? 'Beginner Guide: ON' : 'Beginner Guide: OFF'}</span>
+              <span>
+                {dummyProofMode ? 'Simple Mode (No-Code)' : 'Pro Mode (All 14 Files)'}
+              </span>
             </button>
 
             {/* Local Blueprints Manager Button */}
@@ -1862,44 +1920,60 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
         {/* Navigation Tabs */}
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-slate-800/60 bg-slate-950/50">
-          {[
-            {
-              id: 'guide',
-              label: '0. How to Use (Dummy-Proof Guide)',
-              icon: Compass,
-              badge: 'Read First'
-            },
-            {
-              id: 'ideation',
-              label: '1. Plain-English Idea & AI Auto-Fill',
-              icon: Sparkles,
-              badge: 'Step 1'
-            },
-            {
-              id: 'prompt5',
-              label: '2. Task Prompt Builder (5 Sections)',
-              icon: Terminal,
-              badge: 'Step 2'
-            },
-            {
-              id: 'agentsmd',
-              label: '3. AGENTS.md (Project Rules)',
-              icon: BookOpen,
-              badge: 'Step 3'
-            },
-            {
-              id: 'platform_files',
-              label: '4. Copilot, Antigravity & Jules Files',
-              icon: FolderGit2,
-              badge: 'Step 4'
-            },
-            {
-              id: 'sdd',
-              label: '5. Spec & Task Slices (spec.md / tasks.md)',
-              icon: Layers,
-              badge: 'Step 5'
-            }
-          ].map((tab) => {
+          {(dummyProofMode
+            ? [
+                {
+                  id: 'ideation',
+                  label: '1. Describe Your App',
+                  icon: Sparkles,
+                  badge: 'Step 1'
+                },
+                {
+                  id: 'guide',
+                  label: '2. How to Use Your Files',
+                  icon: Compass,
+                  badge: 'Step 2'
+                }
+              ]
+            : [
+                {
+                  id: 'guide',
+                  label: '0. How to Use (Dummy-Proof Guide)',
+                  icon: Compass,
+                  badge: 'Read First'
+                },
+                {
+                  id: 'ideation',
+                  label: '1. Plain-English Idea & AI Auto-Fill',
+                  icon: Sparkles,
+                  badge: 'Step 1'
+                },
+                {
+                  id: 'prompt5',
+                  label: '2. Task Prompt Builder (5 Sections)',
+                  icon: Terminal,
+                  badge: 'Step 2'
+                },
+                {
+                  id: 'agentsmd',
+                  label: '3. AGENTS.md (Project Rules)',
+                  icon: BookOpen,
+                  badge: 'Step 3'
+                },
+                {
+                  id: 'platform_files',
+                  label: '4. Copilot, Antigravity & Jules Files',
+                  icon: FolderGit2,
+                  badge: 'Step 4'
+                },
+                {
+                  id: 'sdd',
+                  label: '5. Spec & Task Slices (spec.md / tasks.md)',
+                  icon: Layers,
+                  badge: 'Step 5'
+                }
+              ]
+          ).map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -2519,10 +2593,10 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 flex items-start gap-3 text-xs text-amber-100">
                   <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong>Beginner Tip for Step 1:</strong> Just describe your idea in plain
-                    English below (like talking to a friend). Then click the purple{' '}
-                    <strong>"AI Auto-Architect All Prompt &amp; Repo Files"</strong> button—it will
-                    automatically fill out Tabs 2, 3, 4, and 5 for you!
+                    <strong>Simple Mode Tip:</strong> Describe your idea in plain English below,
+                    pick your app type and AI tool, then click{' '}
+                    <strong>&quot;✨ Step 1: Turn My Idea Into AI Instructions&quot;</strong>. No
+                    coding knowledge or API key required!
                   </div>
                 </div>
               )}
@@ -2533,22 +2607,42 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div>
                     <h2 className="text-base font-semibold text-white flex items-center gap-2">
                       <Wand2 className="w-4 h-4 text-indigo-400" />
-                      Plain-Language App or Feature Idea ("The What & Why")
+                      {dummyProofMode
+                        ? 'Describe What You Want to Build'
+                        : 'Plain-Language App or Feature Idea ("The What & Why")'}
                     </h2>
                     <p className="text-xs text-slate-400">
-                      Describe what you want to build in everyday language. Click{' '}
-                      <strong className="text-indigo-300">AI Auto-Architect All Fields</strong> to
-                      populate every prompt section, AGENTS.md, and SDD file automatically.
+                      {dummyProofMode ? (
+                        <>
+                          Write your idea in everyday language. Click{' '}
+                          <strong className="text-indigo-300">
+                            ✨ Step 1: Turn My Idea Into AI Instructions
+                          </strong>{' '}
+                          to update all your AI prompt and setup files automatically.
+                        </>
+                      ) : (
+                        <>
+                          Describe what you want to build in everyday language. Click{' '}
+                          <strong className="text-indigo-300">AI Auto-Architect All Fields</strong>{' '}
+                          to populate every prompt section, AGENTS.md, and SDD file automatically.
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Plain-Language Feature / Application Idea
+                    <label
+                      htmlFor="plain-idea-input"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      {dummyProofMode
+                        ? 'What should your app do?'
+                        : 'Plain-Language Feature / Application Idea'}
                     </label>
                     <textarea
+                      id="plain-idea-input"
                       rows={4}
                       value={form.plainIdea}
                       onChange={(e) => updateField('plainIdea', e.target.value)}
@@ -2558,10 +2652,16 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Target Users & Problem Context
+                    <label
+                      htmlFor="user-persona-input"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      {dummyProofMode
+                        ? 'Who will use this app?'
+                        : 'Target Users & Problem Context'}
                     </label>
                     <input
+                      id="user-persona-input"
                       type="text"
                       value={form.userPersona}
                       onChange={(e) => updateField('userPersona', e.target.value)}
@@ -2572,70 +2672,223 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
 
                 {/* Target Agent, Platform & Execution Architecture Matrix */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                  {/* Target Agent Harness */}
-                  <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                    <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                      Target Coding Agent
-                    </label>
-                    <select
-                      value={form.agent}
-                      onChange={(e) => updateField('agent', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="antigravity">Google Antigravity (App / IDE / agy CLI)</option>
-                      <option value="copilot">GitHub Copilot (IDE / CLI / Cloud Agent)</option>
-                      <option value="jules">Google Jules (Async Cloud VM Contractor)</option>
-                    </select>
-                    <p className="text-[11px] text-slate-400 mt-1.5">
-                      {form.agent === 'antigravity' &&
-                        'Supports /plan, /grill-me, /boost, /teamwork, 24KB .agents/rules/*.md & SKILL.md.'}
-                      {form.agent === 'copilot' &&
-                        'Supports 5-tier instructions, .agent.md handoffs, /plan, /fleet & #runSubagent.'}
-                      {form.agent === 'jules' &&
-                        'Clones repo into Ubuntu VM. Capped at 5 tasks/day (beta), 5MB initial PNG/JPEG.'}
-                    </p>
-                  </div>
+                {dummyProofMode ? (
+                  <div className="space-y-4 pt-2">
+                    {/* 1. Platform Visual Picker */}
+                    <fieldset className="space-y-2">
+                      <legend className="text-xs font-semibold text-slate-200">
+                        What kind of app are you making?
+                      </legend>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          {
+                            value: 'web',
+                            emoji: '🌐',
+                            title: 'Website / Web App',
+                            desc: 'Runs in a web browser like Chrome or Brave'
+                          },
+                          {
+                            value: 'mobile',
+                            emoji: '📱',
+                            title: 'Phone App',
+                            desc: 'Runs on iPhone and Android phones'
+                          },
+                          {
+                            value: 'desktop',
+                            emoji: '💻',
+                            title: 'Computer App',
+                            desc: 'Runs on Ubuntu, Windows, or Mac desktop'
+                          }
+                        ].map((option) => {
+                          const selected = form.platform === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() =>
+                                applyDomainInvariants(
+                                  option.value === 'desktop' ? 'desktop_tauri' : option.value
+                                )
+                              }
+                              className={`text-left rounded-xl p-3 border transition focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                                selected
+                                  ? 'bg-indigo-600/20 border-indigo-400 text-white shadow-sm'
+                                  : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 text-xs font-semibold">
+                                <span aria-hidden="true">{option.emoji}</span>
+                                <span>{option.title}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 mt-1">{option.desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
 
-                  {/* Target Application Domain */}
-                  <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                    <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                      Target Domain Architecture
-                    </label>
-                    <select
-                      value={form.platform}
-                      onChange={(e) => applyDomainInvariants(e.target.value === 'desktop' ? 'desktop_tauri' : e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="web">Web App (Next.js 15 / React 19 / TanStack)</option>
-                      <option value="mobile">Mobile App (RN TurboModules / Flutter / Native)</option>
-                      <option value="desktop">Desktop App (Tauri v2 Rust / Electron)</option>
-                    </select>
-                    <p className="text-[11px] text-slate-400 mt-1.5">
-                      Automatically primes boundary invariants for Server/Client, Native Bridges, or IPC.
-                    </p>
-                  </div>
+                    {/* 2. AI Tool Visual Picker */}
+                    <fieldset className="space-y-2">
+                      <legend className="text-xs font-semibold text-slate-200">
+                        Which AI tool are you pasting this into?
+                      </legend>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          {
+                            value: 'antigravity',
+                            emoji: '🚀',
+                            title: 'Google Antigravity (agy)'
+                          },
+                          {
+                            value: 'copilot',
+                            emoji: '🐙',
+                            title: 'GitHub Copilot'
+                          },
+                          {
+                            value: 'jules',
+                            emoji: '☁️',
+                            title: 'Google Jules'
+                          }
+                        ].map((option) => {
+                          const selected = form.agent === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() => updateField('agent', option.value)}
+                              className={`text-left rounded-xl p-3 border transition focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                                selected
+                                  ? 'bg-indigo-600/20 border-indigo-400 text-white shadow-sm'
+                                  : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 text-xs font-semibold">
+                                <span aria-hidden="true">{option.emoji}</span>
+                                <span>{option.title}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
 
-                  {/* Execution Mode */}
-                  <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
-                    <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                      Slice Execution Mode
-                    </label>
-                    <select
-                      value={form.executionMode}
-                      onChange={(e) => updateField('executionMode', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="HITL">HITL (Human-in-the-Loop Co-Piloted)</option>
-                      <option value="AFK">AFK (Autonomous Cloud VM / Subagent)</option>
-                    </select>
-                    <p className="text-[11px] text-slate-400 mt-1.5">
-                      {form.executionMode === 'HITL'
-                        ? 'Best for foundational architecture, auth boundaries, and UX nuances.'
-                        : 'Best for well-scoped vertical slices delegated to Jules, Cloud Agent, or /fleet.'}
-                    </p>
+                    {/* 3. Execution Style Visual Picker */}
+                    <fieldset className="space-y-2">
+                      <legend className="text-xs font-semibold text-slate-200">
+                        How do you want the AI to work?
+                      </legend>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {[
+                          {
+                            value: 'HITL',
+                            emoji: '👀',
+                            title: 'Step-by-Step with Me Watching',
+                            desc: 'The AI asks before changing files'
+                          },
+                          {
+                            value: 'AFK',
+                            emoji: '🤖',
+                            title: 'Build It Automatically in the Background',
+                            desc: 'The AI finishes the whole task on its own'
+                          }
+                        ].map((option) => {
+                          const selected = form.executionMode === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() => updateField('executionMode', option.value)}
+                              className={`text-left rounded-xl p-3 border transition focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                                selected
+                                  ? 'bg-indigo-600/20 border-indigo-400 text-white shadow-sm'
+                                  : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 text-xs font-semibold">
+                                <span aria-hidden="true">{option.emoji}</span>
+                                <span>{option.title}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 mt-1">{option.desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    {/* Target Agent Harness */}
+                    <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                        Target Coding Agent
+                      </label>
+                      <select
+                        value={form.agent}
+                        onChange={(e) => updateField('agent', e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="antigravity">Google Antigravity (App / IDE / agy CLI)</option>
+                        <option value="copilot">GitHub Copilot (IDE / CLI / Cloud Agent)</option>
+                        <option value="jules">Google Jules (Async Cloud VM Contractor)</option>
+                      </select>
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        {form.agent === 'antigravity' &&
+                          'Supports /plan, /grill-me, /boost, /teamwork, 24KB .agents/rules/*.md & SKILL.md.'}
+                        {form.agent === 'copilot' &&
+                          'Supports 5-tier instructions, .agent.md handoffs, /plan, /fleet & #runSubagent.'}
+                        {form.agent === 'jules' &&
+                          'Clones repo into Ubuntu VM. Capped at 5 tasks/day (beta), 5MB initial PNG/JPEG.'}
+                      </p>
+                    </div>
+
+                    {/* Target Application Domain */}
+                    <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                        Target Domain Architecture
+                      </label>
+                      <select
+                        value={form.platform}
+                        onChange={(e) =>
+                          applyDomainInvariants(
+                            e.target.value === 'desktop' ? 'desktop_tauri' : e.target.value
+                          )
+                        }
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="web">Web App (Next.js 15 / React 19 / TanStack)</option>
+                        <option value="mobile">Mobile App (RN TurboModules / Flutter / Native)</option>
+                        <option value="desktop">Desktop App (Tauri v2 Rust / Electron)</option>
+                      </select>
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        Automatically primes boundary invariants for Server/Client, Native Bridges,
+                        or IPC.
+                      </p>
+                    </div>
+
+                    {/* Execution Mode */}
+                    <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3">
+                      <label className="block text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
+                        Slice Execution Mode
+                      </label>
+                      <select
+                        value={form.executionMode}
+                        onChange={(e) => updateField('executionMode', e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="HITL">HITL (Human-in-the-Loop Co-Piloted)</option>
+                        <option value="AFK">AFK (Autonomous Cloud VM / Subagent)</option>
+                      </select>
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        {form.executionMode === 'HITL'
+                          ? 'Best for foundational architecture, auth boundaries, and UX nuances.'
+                          : 'Best for well-scoped vertical slices delegated to Jules, Cloud Agent, or /fleet.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Magic Action Buttons */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -2651,7 +2904,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     )}
                     <span>
                       {isGeneratingAll
-                        ? 'Synthesizing All Sections with Gemini...'
+                        ? 'Building Your AI Instructions...'
+                        : dummyProofMode
+                        ? '✨ Step 1: Turn My Idea Into AI Instructions'
                         : 'AI Auto-Architect All Prompt & Repo Files'}
                     </span>
                   </button>
@@ -2668,7 +2923,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     )}
                     <span>
                       {isGrilling
-                        ? 'Generating Socratic Interview...'
+                        ? 'Checking for Missing Details...'
+                        : dummyProofMode
+                        ? '❓ Step 2: Check My Idea for Missing Details (3 Quick Questions)'
                         : 'Run /grill-me Socratic Design Interview'}
                     </span>
                   </button>
@@ -2681,12 +2938,19 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div>
                     <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                       <HelpCircle className="w-4 h-4 text-cyan-400" />
-                      Stage 3: Socratic Design Interview (<code>/grill-me</code> &amp;{' '}
-                      <code>/speckit.clarify</code>)
+                      {dummyProofMode ? (
+                        'Step 2: Quick Check for Missing Details'
+                      ) : (
+                        <>
+                          Stage 3: Socratic Design Interview (<code>/grill-me</code> &amp;{' '}
+                          <code>/speckit.clarify</code>)
+                        </>
+                      )}
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Resolve hidden edge cases, permissions, and recovery states before locking the
-                      technical plan. Recommended choices are marked first.
+                      {dummyProofMode
+                        ? 'Answer 3 quick multiple-choice questions to catch edge cases before the AI starts building.'
+                        : 'Resolve hidden edge cases, permissions, and recovery states before locking the technical plan. Recommended choices are marked first.'}
                     </p>
                   </div>
                   {grillQuestions.length === 0 && (
@@ -2701,9 +2965,23 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
                 {grillQuestions.length === 0 ? (
                   <div className="rounded-xl bg-slate-950/60 border border-slate-800/80 p-4 text-xs text-slate-400">
-                    Click <strong>"Run /grill-me Socratic Design Interview"</strong> above to let the
-                    AI inspect your plain-language idea and ask targeted multiple-choice edge-case
-                    questions—just like Google Antigravity's <code>/grill-me</code> command.
+                    {dummyProofMode ? (
+                      <>
+                        Click{' '}
+                        <strong>
+                          &quot;❓ Step 2: Check My Idea for Missing Details (3 Quick
+                          Questions)&quot;
+                        </strong>{' '}
+                        above to double-check permissions, offline behavior, and error handling.
+                      </>
+                    ) : (
+                      <>
+                        Click <strong>&quot;Run /grill-me Socratic Design Interview&quot;</strong>{' '}
+                        above to let the AI inspect your plain-language idea and ask targeted
+                        multiple-choice edge-case questions—just like Google Antigravity&apos;s{' '}
+                        <code>/grill-me</code> command.
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2770,6 +3048,17 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   </div>
                 )}
               </div>
+
+              {dummyProofMode && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    onClick={() => handleToggleSimpleMode(false)}
+                    className="text-xs text-slate-400 hover:text-indigo-300 underline underline-offset-4 transition"
+                  >
+                    Switch to Pro Mode to edit 5-Section Prompts, AGENTS.md &amp; EARS Specs
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -3899,6 +4188,62 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
           }`}
         >
           <div className="sticky top-28 bg-slate-900/95 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-8.5rem)]">
+            {dummyProofMode && (
+              <div className="p-4 border-b border-indigo-500/30 bg-gradient-to-br from-indigo-950/90 via-slate-900 to-slate-900 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+                    Ready to Build? Choose Your Next Step
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div className="rounded-xl bg-slate-950/80 border border-indigo-500/40 p-3 space-y-2">
+                    <div className="text-xs font-semibold text-white">
+                      Option A — Easiest (No Folders Needed)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopy(artifacts['TASK_PROMPT.md'].content, 'NEXT_STEP_PROMPT')
+                      }
+                      className="w-full py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition"
+                    >
+                      {copiedKey === 'NEXT_STEP_PROMPT' ? (
+                        <>
+                          <Check className="w-4 h-4 shrink-0" />
+                          <span>Copied! Now paste this into Antigravity or Copilot Chat</span>
+                        </>
+                      ) : (
+                        <span>📋 Copy Prompt to Paste into AI Chat</span>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 space-y-2">
+                    <div className="text-xs font-semibold text-slate-200">
+                      Option B — Full Project Setup (1-Click Folder Save)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExportToFolder}
+                      disabled={isExportingFolder}
+                      className="w-full py-2 px-3.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 border border-emerald-500/40 text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-60"
+                    >
+                      <span>
+                        {isExportingFolder
+                          ? 'Putting Files Into Your Folder...'
+                          : '📁 Put All Files Into My Project Folder'}
+                      </span>
+                    </button>
+                    <p className="text-[11px] text-slate-400">
+                      Pick an empty folder on your computer and we will put all the rule files in
+                      the right places automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Artifact Dock Header */}
             <div className="p-4 border-b border-slate-800 bg-slate-950/60 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -3944,42 +4289,72 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
               </div>
 
               {/* File Selector Pills */}
-              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
-                {Object.entries(artifacts).map(([fileKey, item]) => {
-                  const active = fileKey === currentArtifactKey;
-                  return (
-                    <button
-                      key={fileKey}
-                      onClick={() => setSelectedArtifact(fileKey)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition flex items-center gap-1.5 border ${
-                        active
-                          ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/70'
-                      }`}
-                    >
-                      <span>{fileKey}</span>
-                    </button>
-                  );
-                })}
+              <div className="flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto pr-1">
+                {isSimpleDockFiltered
+                  ? SIMPLE_ESSENTIAL_FILES.map(({ key: fileKey, label }) => {
+                      const active = fileKey === currentArtifactKey;
+                      return (
+                        <button
+                          key={fileKey}
+                          onClick={() => setSelectedArtifact(fileKey)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition flex items-center gap-1.5 border ${
+                            active
+                              ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
+                              : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-800/70'
+                          }`}
+                        >
+                          <span>{label}</span>
+                        </button>
+                      );
+                    })
+                  : Object.entries(artifacts).map(([fileKey]) => {
+                      const active = fileKey === currentArtifactKey;
+                      return (
+                        <button
+                          key={fileKey}
+                          onClick={() => setSelectedArtifact(fileKey)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition flex items-center gap-1.5 border ${
+                            active
+                              ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/60 font-semibold'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/70'
+                          }`}
+                        >
+                          <span>{fileKey}</span>
+                        </button>
+                      );
+                    })}
+                {dummyProofMode && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllSimpleFiles((prev) => !prev)}
+                    className="px-2 py-1 text-[11px] font-medium text-indigo-300 hover:text-indigo-200 underline underline-offset-2 transition"
+                  >
+                    {showAllSimpleFiles
+                      ? 'Show 3 essential files only'
+                      : 'Show all 14 advanced files'}
+                  </button>
+                )}
               </div>
 
-              {/* Live Contract Diagnostics Bar */}
-              <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
-                <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                  <span className="text-slate-400">Primacy/Recency:</span>
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Locked
-                  </span>
+              {/* Live Contract Diagnostics Bar (Pro Mode only) */}
+              {!dummyProofMode && (
+                <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
+                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
+                    <span className="text-slate-400">Primacy/Recency:</span>
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Locked
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
+                    <span className="text-slate-400">Est. Prompt:</span>
+                    <span className="text-cyan-300 font-mono">~{diagnostics.estTokens} tok</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
+                    <span className="text-slate-400">Context Rot Limit:</span>
+                    <span className="text-indigo-300 font-mono">&lt;120k OK</span>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                  <span className="text-slate-400">Est. Prompt:</span>
-                  <span className="text-cyan-300 font-mono">~{diagnostics.estTokens} tok</span>
-                </div>
-                <div className="rounded-lg bg-slate-900/90 border border-slate-800 px-2.5 py-1.5 flex items-center justify-between">
-                  <span className="text-slate-400">Context Rot Limit:</span>
-                  <span className="text-indigo-300 font-mono">&lt;120k OK</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Active File Path Subbar */}
