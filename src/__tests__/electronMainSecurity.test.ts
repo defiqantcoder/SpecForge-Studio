@@ -44,16 +44,20 @@ vi.mock('electron', () => {
   };
 });
 
-// Mock fs
-vi.mock('fs', () => ({
-  existsSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  readFileSync: vi.fn(),
-  chmodSync: vi.fn(),
-  readdirSync: vi.fn(),
-  unlinkSync: vi.fn()
-}));
+// Mock fs properly
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal() as typeof import('fs');
+  return {
+    ...actual,
+    existsSync: vi.fn(),
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    readFileSync: vi.fn(),
+    chmodSync: vi.fn(),
+    readdirSync: vi.fn(),
+    unlinkSync: vi.fn()
+  };
+});
 
 // Mock os
 vi.mock('os', () => ({
