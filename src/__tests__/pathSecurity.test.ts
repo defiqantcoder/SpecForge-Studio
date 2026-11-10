@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import { resolveSafeChildPath, sanitizeBlueprintId } from '../../electron/pathSecurity';
 
 describe('resolveSafeChildPath', () => {
@@ -35,6 +37,47 @@ describe('resolveSafeChildPath', () => {
     expect(() => resolveSafeChildPath(root, '/etc/passwd')).toThrow(/Absolute paths/);
     expect(() => resolveSafeChildPath(root, 'foo\0bar.md')).toThrow(/null byte/);
     expect(() => resolveSafeChildPath(root, '')).toThrow(/empty/);
+  });
+});
+
+describe('resolveSafeChildPath symlink handling', () => {
+  let tmpDir: string;
+  let realRoot: string;
+  let symRoot: string;
+  let outsideDir: string;
+
+  beforeAll(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pathSecurity-'));
+    realRoot = path.join(tmpDir, 'real-root');
+    symRoot = path.join(tmpDir, 'sym-root');
+    outsideDir = path.join(tmpDir, 'outside');
+
+    fs.mkdirSync(realRoot);
+    fs.mkdirSync(outsideDir);
+    fs.symlinkSync(realRoot, symRoot);
+
+    // Create nested symlink escaping to outsideDir
+    const innerDir = path.join(realRoot, 'inner');
+    fs.mkdirSync(innerDir);
+    fs.symlinkSync(outsideDir, path.join(innerDir, 'escape'));
+  });
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('handles root directory that is itself a symlink to another directory', () => {
+    const result = resolveSafeChildPath(symRoot, 'inner/file.txt');
+    expect(result).toBe(path.join(realRoot, 'inner', 'file.txt'));
+  });
+
+  it('rejects deeply nested relative paths where multiple subdirectories are symlinks escaping out', () => {
+    expect(() => resolveSafeChildPath(symRoot, 'inner/escape/secret.txt')).toThrow(/Path traversal detected via symlink/);
+  });
+
+  it('normalizes windows style backslashes', () => {
+    const result = resolveSafeChildPath(symRoot, 'inner\\file.txt');
+    expect(result).toBe(path.join(realRoot, 'inner', 'file.txt'));
   });
 });
 
