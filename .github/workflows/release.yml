@@ -2,10 +2,8 @@ name: Build Ubuntu Desktop Release
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +15,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
