@@ -80,6 +80,11 @@ const QUICK_FILL_CHIPS = {
 };
 
 const FILE_USAGE_GUIDE = {
+  'FULL_BLUEPRINT_REPORT.md': {
+    whatIsIt: 'Unified Blueprint Report that bundles the project summary, architecture rules, EARS acceptance criteria, and task checklist into a single document.',
+    whereItGoes: 'Use this for team review, GitHub PR descriptions, or sharing the complete architectural RFC.',
+    BeginnerTip: 'Copy this into an issue tracker or PR description so everyone has the same context.'
+  },
   'TASK_PROMPT.md': {
     whatIsIt: 'Your main 5-Section Task Prompt with high-priority instructions at the top and bottom.',
     whereItGoes: 'Copy and paste this directly into the chat box of Google Antigravity, GitHub Copilot Chat, or a Google Jules task / GitHub Issue.',
@@ -1735,6 +1740,36 @@ ${uiStatesFormatted}
 ${slicesFormatted}
 `;
 
+
+    const fullBlueprintReportMd = `# Full Blueprint Report
+
+## Executive Overview
+**Idea**: ${form.plainIdea}
+**Target Persona**: ${form.userPersona}
+**Objective**: ${form.objective}
+**Outcome**: ${form.observableOutcome}
+
+## Pinned Tech Stack & Security Boundaries
+**Tech Stack**: ${form.pinnedStack}
+**State & Data Rules**:
+${form.stateAndDataRules}
+**Runtime & Security Limits**:
+${form.runtimeAndSecurityLimits}
+
+## EARS Acceptance Criteria
+| When | Then The System Shall |
+| --- | --- |
+${form.earsSpecs.map(e => `| ${e.when} | ${e.shall} |`).join('\n')}
+
+## Vertical-Slice Task Breakdown
+${slicesFormatted}
+
+## Verification Commands
+\`\`\`bash
+${form.verificationCommands}
+\`\`\`
+`;
+
     // 14. One-Command Google Antigravity (agy) Workspace Bootstrapper Script
     const agyBootstrapSh = `#!/usr/bin/env bash
 # ============================================================================
@@ -1794,6 +1829,11 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 `;
 
     return {
+      'FULL_BLUEPRINT_REPORT.md': {
+        title: 'FULL_BLUEPRINT_REPORT.md (Unified Spec Report)',
+        badge: 'Shareable Spec',
+        content: fullBlueprintReportMd
+      },
       'bootstrap-agy.sh': {
         title: 'bootstrap-agy.sh (1-Click Antigravity Setup)',
         badge: '1-Click Setup',
@@ -4948,7 +4988,24 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     Live Generated Artifact &amp; File Suite
                   </h3>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(artifacts['FULL_BLUEPRINT_REPORT.md'].content, 'FULL_BLUEPRINT_REPORT.md')}
+                      className="px-2 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 text-[10px] font-semibold transition"
+                    >
+                      📋 Copy Full Spec Report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile('FULL_BLUEPRINT_REPORT.md', artifacts['FULL_BLUEPRINT_REPORT.md'].content)}
+                      className="px-2 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-[10px] font-semibold transition"
+                    >
+                      📄 Export Shareable Spec Report (.md)
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handleCopy(currentArtifact.content, currentArtifactKey)}
                     className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow"
@@ -4980,6 +5037,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   >
                     <FolderUp className="w-4 h-4" />
                   </button>
+                  </div>
                 </div>
               </div>
 

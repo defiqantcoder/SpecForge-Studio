@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import SpecForgeStudio from '../SpecForgeStudio';
 import type { DesktopAPI } from '../types/desktop';
 
@@ -78,7 +78,7 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
     });
     const callArg = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArg.files).toHaveLength(14);
+    expect(callArg.files).toHaveLength(15);
     expect(callArg.files.some((f: { relativePath: string }) => f.relativePath === 'AGENTS.md')).toBe(
       true
     );
@@ -207,7 +207,7 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(mockApi.exportWorkspaceDialog).toHaveBeenCalledTimes(1);
     });
     const payload = (mockApi.exportWorkspaceDialog as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(payload.files).toHaveLength(14);
+    expect(payload.files).toHaveLength(15);
   });
 
   it('translates Intermediate Mode plain-English rule checkboxes and simplified task slicer into technical artifacts', async () => {
@@ -257,6 +257,26 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(tasksPreview?.textContent).toContain('Auth Token Verification Slice');
     expect(tasksPreview?.textContent).toContain('Auth Schema + Domain Service');
     expect(tasksPreview?.textContent).toContain(initialChecked ? '[AFK]' : '[HITL]');
+  });
+
+
+  it('generates FULL_BLUEPRINT_REPORT.md and supports copy action', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const copyBtn = screen.getByRole('button', { name: /📋 Copy Full Spec Report/i });
+    expect(copyBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+
+    if (window.desktopAPI) {
+      expect(mockApi.copyToClipboard).toHaveBeenCalled();
+    }
   });
 
   it('uses Offline Smart Templates when clicking Turn My Idea Into AI Instructions without an API key', async () => {
