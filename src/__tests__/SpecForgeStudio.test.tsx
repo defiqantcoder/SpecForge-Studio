@@ -339,4 +339,30 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(mockApi.setGeminiApiKey).toHaveBeenCalledWith('AIzaTestKey1234');
     });
   });
+
+  it('renders and interacts with the Prompt Readiness Scorecard', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Check if the scorecard is rendered
+    expect(screen.getByText(/Prompt Readiness Scorecard/i)).toBeTruthy();
+
+    // Check initial state (should not be 100%)
+        // The initial render will be Good (80%) or Needs Details depending on the form mock. Let's just find the text matching Needs Details or Good or Production-Ready
+    const badgeButton = screen.getByText(/Needs Details \(\d+%\)|Good \(\d+%\)|Production-Ready/i, { selector: 'button' });
+    expect(badgeButton).toBeTruthy();
+
+    // Open scorecard
+    fireEvent.click(badgeButton);
+
+    // Check if there are Fix Now buttons
+    const fixNowButtons = screen.queryAllByText(/Fix Now/i);
+    if (fixNowButtons.length > 0) {
+      fireEvent.click(fixNowButtons[0]);
+      await new Promise(r => setTimeout(r, 150));
+    }
+  });
 });

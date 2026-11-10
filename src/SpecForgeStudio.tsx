@@ -612,6 +612,7 @@ export default function SpecForgeStudio() {
   const showPlainHelpers = !isProMode;
   // Optional toggle inside Simple/Intermediate dock to peek at all 14 files
   const [showAllSimpleFiles, setShowAllSimpleFiles] = useState(false);
+  const [showScorecard, setShowScorecard] = useState(false);
   // Auto-Expand Options loading & visual highlight state
   const [expandingField, setExpandingField] = useState<ExpandableFieldKey | null>(null);
   const [expandedHighlights, setExpandedHighlights] = useState<
@@ -1956,6 +1957,53 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
     };
   }, [artifacts, form]);
 
+
+  const scorecardItems = useMemo(() => {
+    const items = [
+      {
+        key: 'plainIdea',
+        label: 'Clear plain-English idea',
+        isComplete: (form.plainIdea?.length || 0) > 30,
+        tab: 'ideation',
+        focusId: 'field-plainIdea'
+      },
+      {
+        key: 'targetFilesModify',
+        label: 'Target files specified',
+        isComplete: (form.targetFilesModify?.trim().length || 0) > 0,
+        tab: 'prompt5',
+        focusId: 'field-targetFilesModify'
+      },
+      {
+        key: 'uiStates',
+        label: 'Explicit UI states defined',
+        isComplete: Object.values(form.uiStates || {}).length === 6 && Object.values(form.uiStates || {}).every((v: any) => typeof v === 'string' && v.trim().length > 0),
+        tab: 'prompt5',
+        focusId: 'field-uiStates'
+      },
+      {
+        key: 'earsCriteria',
+        label: 'Testable acceptance criteria (>=2)',
+        isComplete: (form.earsSpecs?.length || 0) >= 2 && form.earsSpecs.every((s) => s.when?.trim().length > 0 && s.shall?.trim().length > 0),
+        tab: 'sdd',
+        focusId: 'field-earsSpecs'
+      },
+      {
+        key: 'verificationCommands',
+        label: 'Verification shell commands present',
+        isComplete: (form.verificationCommands?.trim().length || 0) > 0,
+        tab: 'prompt5',
+        focusId: 'field-verificationCommands'
+      }
+    ];
+    const score = Math.round((items.filter(i => i.isComplete).length / items.length) * 100);
+    const badgeText = score === 100 ? 'Production-Ready' : (score >= 80 ? 'Good' : 'Needs Details');
+    const badgeColor = score === 100 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30' : (score >= 80 ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 hover:bg-indigo-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30');
+
+    return { items, score, badgeText, badgeColor };
+  }, [form]);
+
+
   // Native OS clipboard copy (with browser fallback)
   const handleCopy = async (text: string, keyLabel: string) => {
     try {
@@ -3078,7 +3126,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <label
-                        htmlFor="plain-idea-input"
+                        htmlFor="field-plainIdea"
                         className="block text-xs font-medium text-slate-300"
                       >
                         {dummyProofMode
@@ -3097,7 +3145,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                       </button>
                     </div>
                     <textarea
-                      id="plain-idea-input"
+                      id="field-plainIdea"
                       rows={4}
                       value={form.plainIdea}
                       onChange={(e) => updateField('plainIdea', e.target.value)}
@@ -3714,6 +3762,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </label>
                     <input
                       type="text"
+                      id="field-targetFilesModify"
                       value={form.targetFilesModify}
                       onChange={(e) => updateField('targetFilesModify', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs sm:text-sm font-mono text-cyan-200 focus:outline-none focus:border-indigo-500"
@@ -3979,6 +4028,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {Object.entries(form.uiStates).map(([stateKey, desc]) => (
                       <div
+                        id={stateKey === 'loading' ? 'field-uiStates' : undefined}
                         key={stateKey}
                         className="bg-slate-950 border border-slate-800 rounded-xl p-2.5"
                       >
@@ -4060,6 +4110,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                     </label>
                     <input
                       type="text"
+                      id="field-verificationCommands"
                       value={form.verificationCommands}
                       onChange={(e) => updateField('verificationCommands', e.target.value)}
                       className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs font-mono text-purple-200 focus:outline-none focus:border-indigo-500"
@@ -4983,7 +5034,58 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
                 </div>
               </div>
 
-              {/* File Selector Pills */}
+
+            {/* Prompt Readiness Scorecard */}
+            <div className="px-4 py-3 bg-slate-900/50 border-b border-slate-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-200">Prompt Readiness Scorecard</span>
+                </div>
+                <button
+                  onClick={() => setShowScorecard(!showScorecard)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition ${scorecardItems.badgeColor}`}
+                >
+                  {scorecardItems.badgeText} ({scorecardItems.score}%)
+                </button>
+              </div>
+
+              {showScorecard && (
+                <div className="mt-3 space-y-1.5">
+                  {scorecardItems.items.map((item) => (
+                    <div key={item.key} className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+                      <div className="flex items-center gap-2">
+                        {item.isComplete ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-slate-600" />
+                        )}
+                        <span className={`text-xs ${item.isComplete ? 'text-slate-300' : 'text-slate-400'}`}>
+                          {item.label}
+                        </span>
+                      </div>
+                      {!item.isComplete && (
+                        <button
+                          onClick={() => {
+                            setMobilePane('editor');
+                            setActiveTab(item.tab);
+                            setTimeout(() => {
+                              document.getElementById(item.focusId)?.focus();
+                              document.getElementById(item.focusId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 100);
+                          }}
+                          className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-semibold transition"
+                        >
+                          Fix Now
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* File Selector Pills */}
               <div
                 className={`flex flex-wrap items-center gap-1.5 overflow-y-auto pr-1 ${
                   isDockFiltered && isIntermediateMode ? 'max-h-48' : 'max-h-28'
