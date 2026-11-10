@@ -50,9 +50,6 @@ import type { DesktopAppInfo, GeminiSettingsInfo, SavedBlueprint } from './types
 const LOCAL_DRAFT_STORAGE_KEY = 'specforge-studio:draft-v1';
 const LOCAL_BLUEPRINTS_STORAGE_KEY = 'specforge-studio:blueprints-v1';
 
-const escapeMarkdownTableCell = (value: string) =>
-  value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r\n|\r|\n/g, ' ');
-
 // ============================================================================
 // DUMMY-PROOF HELPER CHIPS & FILE PLACEMENT INSTRUCTIONS
 // ============================================================================
@@ -1760,9 +1757,7 @@ ${form.stateAndDataRules}
 ${form.runtimeAndSecurityLimits}
 
 ## EARS Acceptance Criteria
-| When | Then The System Shall |
-| --- | --- |
-${form.earsSpecs.map(e => `| ${escapeMarkdownTableCell(e.when)} | ${escapeMarkdownTableCell(e.shall)} |`).join('\n')}
+${earsFormatted}
 
 ## Vertical-Slice Task Breakdown
 ${slicesFormatted}

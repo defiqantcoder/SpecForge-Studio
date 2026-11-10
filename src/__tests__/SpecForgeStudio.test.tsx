@@ -1,4 +1,5 @@
 import React from 'react';
+import { marked } from 'marked';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import SpecForgeStudio from '../SpecForgeStudio';
@@ -273,10 +274,11 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(document.querySelector('pre.whitespace-pre-wrap')?.textContent).toContain('# 1. ROLE & OBJECTIVE (Primacy Anchor)');
   });
 
-  it('keeps pipes and multiline EARS criteria inside their report table cells', async () => {
+  it('preserves inline code backslashes, pipes, and multiline EARS criteria in rendered reports', async () => {
     localStorage.setItem('specforge-studio:draft-v1', JSON.stringify({
       form: { earsSpecs: [
         { when: 'first | second\r\nnext\rlast\nend', shall: 'show | result\nthen\r\nfinish' },
+        { when: 'matching `\\d+` or ``a`\\w+``', shall: 'keep `C:\\temp\\file` and `a|b` unchanged' },
         { when: 'ordinary trigger', shall: 'ordinary reaction' }
       ] }
     }));
@@ -286,12 +288,19 @@ describe('SpecForgeStudio Desktop UI', () => {
       fireEvent.click(screen.getByRole('button', { name: /Copy Full Spec Report/i }));
     });
     const report = (mockApi.copyToClipboard as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(report).toContain([
-      '| When | Then The System Shall |',
-      '| --- | --- |',
-      '| first \\| second next last end | show \\| result then finish |',
-      '| ordinary trigger | ordinary reaction |'
-    ].join('\n'));
+    const html = await marked.parse(report);
+    const rendered = new DOMParser().parseFromString(html, 'text/html');
+    expect(Array.from(rendered.querySelectorAll('code'), node => node.textContent)).toEqual(
+      expect.arrayContaining(['\\d+', 'a`\\w+', 'C:\\temp\\file', 'a|b'])
+    );
+    const criteria = Array.from(rendered.querySelectorAll('ol > li'), node =>
+      node.textContent?.replace(/\s+/g, ' ').trim()
+    );
+    expect(criteria).toEqual([
+      'WHEN first | second next last end, THE SYSTEM SHALL show | result then finish.',
+      'WHEN matching \\d+ or a`\\w+, THE SYSTEM SHALL keep C:\\temp\\file and a|b unchanged.',
+      'WHEN ordinary trigger, THE SYSTEM SHALL ordinary reaction.'
+    ]);
   });
 
   it('generates FULL_BLUEPRINT_REPORT.md and supports copy action', async () => {
