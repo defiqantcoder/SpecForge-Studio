@@ -1,0 +1,39 @@
+name: Build Ubuntu Desktop Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck & Test
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build Ubuntu .deb and AppImage
+        run: npm run electron:build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: specforge-studio-ubuntu-x64
+          path: |
+            release/*.deb
+            release/*.AppImage

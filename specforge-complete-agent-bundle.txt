@@ -1,0 +1,678 @@
+================================================================================
+FILE PATH: bootstrap-agy.sh
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================================
+# SpecForge Studio -> Google Antigravity (agy) 1-Click Workspace Importer
+# Usage: Paste this into your Antigravity terminal or run: bash bootstrap-agy.sh
+# ============================================================================
+set -e
+
+echo "🚀 Initializing Google Antigravity (agy) Spec-Driven Workspace..."
+
+mkdir -p .agents/rules
+mkdir -p ".agents/skills/verify-vertical-slice/scripts"
+mkdir -p .specify/memory
+mkdir -p specs/001-feature
+
+cat << 'EOF_AGENTS' > AGENTS.md
+# AGENTS.md — Persistent Repository Context & Agent Contract
+
+## Product
+Multi-tenant B2B financial workflow and spend management SaaS application used by finance managers and department leads.
+
+## Stack
+TypeScript 5.7, Next.js 15 (App Router), React 19, Tailwind CSS v4, PostgreSQL 16, Prisma ORM, TanStack Query v5, Zustand, Zod, Vitest, React Testing Library, Mock Service Worker (MSW), Playwright.
+
+## Repository Structure
+```text
+src/app/ -> Synchronous route shells, layouts, and <Suspense> boundaries
+src/features/<domain>/ -> Domain Server Components, leaf Client Components, and Server Actions
+src/services/ -> Pure business logic and data orchestration
+src/lib/ -> Shared infrastructure, auth session helpers, and DB client
+src/types/ -> Shared TypeScript interfaces and domain DTOs
+```
+
+## Commands
+```bash
+Install: pnpm install
+Dev Server: pnpm dev
+Typecheck: pnpm typecheck
+Lint: pnpm lint
+Unit/Integration Tests: pnpm test
+Single File Test: pnpm vitest run <path/to/file.test.tsx>
+E2E Tests: pnpm test:e2e
+Production Build: pnpm build
+```
+
+## Architecture
+- Keep route files (app/**/page.tsx) synchronous composition shells; never run inline DB/API queries in page.tsx.
+- Feature components default to async Server Components; place 'use client' strictly on interactive leaf components.
+- Page owns <Suspense>, Feature file exports matching *Skeleton at the bottom of the file.
+- Keep server data in Server Components or TanStack Query v5 cache; never copy server data into global Zustand stores or useEffect state.
+
+## Coding Conventions
+- Prefer named exports for all components and services.
+- Use composition (children and React.ReactNode slots) instead of boolean layout props (e.g., avoid hasHeader, showFooter).
+- Use stable entity IDs (item.id) for React list keys; never use array index keys.
+- Calculate derived state inline during render; never compute derived state inside useEffect.
+
+## Testing
+- Enforce Red-Green-Refactor TDD for every vertical slice.
+- Query DOM elements strictly via React Testing Library accessibility hierarchy: getByRole -> getByLabelText -> getByText.
+- Mock network boundaries with MSW; never mock internal custom hooks or use UI snapshot tests.
+
+## Security
+- Enforce server-side workspace and resource ownership checks inside every Server Action and API route.
+- Treat client inputs (roles, prices, tenant IDs, user IDs) as untrusted; validate all external inputs with Zod at system boundaries.
+- Never log raw JWTs, API keys, or PII in server or client logs.
+
+## Database
+- Prohibit destructive database migrations (DROP TABLE, DROP COLUMN) without explicit human approval.
+- Require a non-blocking backfill migration plan whenever adding required columns to populated tables.
+- Never edit already-applied migration files under prisma/migrations/.
+
+## Generated Files
+Never manually edit files in:
+- src/generated/
+- prisma/generated/
+- openapi/generated/
+- pnpm-lock.yaml
+Regenerate types via: pnpm db:generate && pnpm openapi:codegen
+
+EOF_AGENTS
+
+cat << 'EOF_RULE' > ".agents/rules/architecture-boundaries.md"
+---
+trigger: always_on
+description: Enforces strict UI/Server boundary separation, state placement, and security validation rules.
+---
+
+# ARCHITECTURE-BOUNDARIES — Architectural & Security Invariants
+
+## Mandatory Boundary Rules
+1. Import invoke strictly from '@tauri-apps/api/core' (NEVER deprecated v1 '@tauri-apps/api/tauri').
+2. Define Rust commands with #[tauri::command] returning Result<OutputDto, String> and manage shared state via tauri::State<'_, Mutex<AppState>>.
+3. Register every command inside tauri::generate_handler![...] in src-tauri/src/lib.rs.
+
+## Runtime & Security Enforcement
+1. Canonicalize and validate all incoming file paths in Rust to prevent path traversal (../../../etc/passwd) outside allowed directories.
+2. Declare explicit, least-privilege permissions in src-tauri/capabilities/default.json (never allow-all scopes).
+3. Preserve tauri.conf.json build chain and add matching IPC mocks in src/__mocks__/ for Vitest.
+
+## Do-Not-Edit Paths
+Do NOT manually edit src/generated/, prisma/generated/, openapi/generated/, or pnpm-lock.yaml.
+
+EOF_RULE
+
+cat << 'EOF_SKILL' > ".agents/skills/verify-vertical-slice/SKILL.md"
+---
+name: verify-vertical-slice
+description: "Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete."
+---
+
+# Skill: verify-vertical-slice
+
+## Operational Habit & Execution Flow
+1. Do NOT read helper script internals into context. Always invoke the black-box verification script with `--help` first:
+   ```bash
+   ./.agents/skills/verify-vertical-slice/scripts/verify-slice.sh --help
+   ```
+2. Execute the Red-Green-Refactor verification loop:
+   ```bash
+   pnpm typecheck && pnpm lint && pnpm test --filter invoices
+   ```
+3. If any check fails, inspect the failing assertion or compiler diagnostic, fix the root cause without weakening tests, and re-run until exit code is 0.
+
+EOF_SKILL
+
+cat << 'EOF_VERIFY_SH' > ".agents/skills/verify-vertical-slice/scripts/verify-slice.sh"
+#!/usr/bin/env bash
+if [[ "$1" == "--help" ]]; then
+  echo "Usage: ./verify-slice.sh — Runs typecheck, linter, and scoped tests."
+  exit 0
+fi
+pnpm typecheck && pnpm lint && pnpm test --filter invoices
+EOF_VERIFY_SH
+chmod +x ".agents/skills/verify-vertical-slice/scripts/verify-slice.sh"
+
+cat << 'EOF_CONSTITUTION' > .specify/memory/constitution.md
+# Project Constitution (.specify/memory/constitution.md)
+> Immutable engineering principles governing every Spec Kit, Antigravity, Copilot, and Jules session.
+
+## Non-Negotiable Engineering Guardrails
+1. TDD is non-negotiable: write failing behavior-first tests before application code.
+2. All database persistence must go through src/services/.
+3. Zero main-thread or SSR blocking on static route shells.
+4. Every external input must be validated with a Zod schema.
+
+## Mandatory Verification Gate
+Every pull request and subagent vertical slice must pass:
+```bash
+pnpm typecheck && pnpm lint && pnpm test --filter invoices
+```
+
+## Restricted Paths
+Do NOT manually edit src/generated/, prisma/generated/, openapi/generated/, or pnpm-lock.yaml.
+
+EOF_CONSTITUTION
+
+cat << 'EOF_SPEC' > specs/001-feature/spec.md
+# Feature Specification (specs/001-feature/spec.md)
+> **Zone A — Product Intent ("What & Why")**: Deliberately free of implementation stack bias.
+
+## 1. Plain-Language Summary & User Intent
+Build a team invoice approval workflow where workspace managers can filter pending invoices, preview line items, and approve or reject invoices with optimistic UI feedback and role-based audit logging.
+
+## 2. Target User Persona
+
+
+## 3. Observable Acceptance Criteria (EARS Notation)
+1. **WHEN** a non-admin workspace member attempts to approve or reject an invoice, **THE SYSTEM SHALL** deny the mutation at the Server Action boundary, log an unauthorized audit event, and return a typed FORBIDDEN error union.
+2. **WHEN** a workspace manager clicks Reject without providing a rejection note of at least 10 characters, **THE SYSTEM SHALL** prevent submission and display an accessible inline validation message linked via aria-describedby.
+3. **WHEN** an invoice approval request succeeds or fails over the network, **THE SYSTEM SHALL** immediately transition the UI via useOptimistic and automatically roll back to PENDING with a retry toast if the server returns an error.
+
+## 4. Required User Experience States
+  - **LOADING**: Render <InvoiceListSkeleton /> with matching card height inside page.tsx <Suspense> boundary.
+  - **EMPTY**: Render accessible empty state with "Clear Filters" action when no invoices match the URL status query.
+  - **ERROR**: Render ErrorBoundary fallback card with a retry callback and correlation ID.
+  - **OFFLINE**: Disable mutation buttons with tooltip indicating offline network status.
+  - **DISABLED**: Disable Approve/Reject controls when user role is Viewer or invoice is already locked.
+  - **SUCCESS**: Optimistically update badge to Approved/Rejected and persist audit log timestamp.
+
+EOF_SPEC
+
+cat << 'EOF_TASKS' > specs/001-feature/tasks.md
+# Dependency-Ordered Vertical-Slice Tasks (specs/001-feature/tasks.md)
+> **Zone B — Technical Execution ("How & Verify")**: Each task cuts a thin end-to-end tracer bullet across schema, service, boundary, UI, and tests.
+> Legend: `[HITL]` = Interactive Human-in-the-Loop Co-Piloting | `[AFK]` = Autonomous Cloud/Subagent | `[P]` = Parallelizable (/fleet or /teamwork)
+
+- [ ] **T001** [HITL] **Invoice Approval Schema, Service & Ownership Guard**
+  - *End-to-End Tracer Layers*: Zod schema + billingService.updateInvoiceDecision() + Server Action auth guard + unit test
+  - *Verification*: `pnpm typecheck && pnpm lint && pnpm test --filter invoices`
+
+- [ ] **T002** [P] [AFK] **Async Server InvoiceList + Skeleton & Synchronous Page Shell**
+  - *End-to-End Tracer Layers*: page.tsx <Suspense> shell + async InvoiceList.tsx + InvoiceListSkeleton + MSW fixture
+  - *Verification*: `pnpm typecheck && pnpm lint && pnpm test --filter invoices`
+
+- [ ] **T003** [P] [AFK] **Optimistic Leaf InvoiceControls & RTL Integration Suite**
+  - *End-to-End Tracer Layers*: 'use client' InvoiceControls.tsx (useOptimistic/useTransition) + RTL getByRole & rollback test
+  - *Verification*: `pnpm typecheck && pnpm lint && pnpm test --filter invoices`
+
+EOF_TASKS
+
+cat << 'EOF_PROMPT' > TASK_PROMPT.md
+/plan /grill-me # 1. ROLE & OBJECTIVE (Primacy Anchor)
+Act as a Senior Next.js 15 & React 19 Full-Stack Architect specializing in App Router Server Components, TanStack Query v5 cache boundaries, and Zod Server Actions.
+OBJECTIVE: Implement the role-based invoice approval vertical slice with optimistic status transitions so that workspace managers can filter, approve, or reject invoices with zero full-page reloads and strict server-side ownership checks.
+
+# 2. CONTEXT & PINNED STACK
+- **Target Files to Modify**: @src/app/(dashboard)/invoices/page.tsx, @src/features/invoices/components/InvoiceList.tsx, @src/features/invoices/components/InvoiceControls.tsx, @src/features/invoices/invoice-actions.ts
+- **Reference Interfaces & Services**: @src/types/invoice.ts, @src/services/billing-service.ts, @src/lib/auth.ts
+- **Pinned Stack**: Next.js 15 App Router, React 19, TypeScript 5.x (strict), Tailwind CSS, TanStack Query v5, Zustand (UI state only), Zod, Vitest, React Testing Library + MSW
+- **Library Guardrail**: Do NOT introduce Redux, Axios, moment.js, or legacy Next.js Pages Router patterns (getServerSideProps).
+- **Visual / Issue Context**: See attached mockup for InvoiceCard layout and inline rejection reason popover.
+
+# 3. ARCHITECTURAL INVARIANTS & CONSTRAINTS
+- **State & Boundary Rules**:
+1. Import invoke strictly from '@tauri-apps/api/core' (NEVER deprecated v1 '@tauri-apps/api/tauri').
+2. Define Rust commands with #[tauri::command] returning Result<OutputDto, String> and manage shared state via tauri::State<'_, Mutex<AppState>>.
+3. Register every command inside tauri::generate_handler![...] in src-tauri/src/lib.rs.
+- **Runtime, Hardware & Security Limits**:
+1. Canonicalize and validate all incoming file paths in Rust to prevent path traversal (../../../etc/passwd) outside allowed directories.
+2. Declare explicit, least-privilege permissions in src-tauri/capabilities/default.json (never allow-all scopes).
+3. Preserve tauri.conf.json build chain and add matching IPC mocks in src/__mocks__/ for Vitest.
+- **Restricted / Generated Files**: Do NOT manually edit src/generated/, prisma/generated/, openapi/generated/, or pnpm-lock.yaml.
+
+# 4. SCOPED VERTICAL-SLICE TASK STEPS & STATE EXAMPLES
+Execute the following steps in sequential order:
+1. Define the Zod input/output schemas (ApproveInvoiceSchema, RejectInvoiceSchema) and discriminated union return types in @src/features/invoices/invoice-schema.ts.
+2. Implement the server service logic in @src/services/billing-service.ts and wire validated Server Actions in @src/features/invoices/invoice-actions.ts with cache tag invalidation.
+3. Build @src/features/invoices/components/InvoiceList.tsx as an async Server Component with exported InvoiceListSkeleton, and wire synchronous <Suspense fallback={<InvoiceListSkeleton />}> in @src/app/(dashboard)/invoices/page.tsx.
+4. Implement the 'use client' leaf component @src/features/invoices/components/InvoiceControls.tsx using useOptimistic and useTransition for instant approve/reject feedback.
+5. Write behavior-first RTL + MSW integration tests verifying skeleton loading, accessible role queries (getByRole), and optimistic rollback on server failure.
+
+- **Required Explicit UI & Domain State Transitions**:
+  - **LOADING**: Render <InvoiceListSkeleton /> with matching card height inside page.tsx <Suspense> boundary.
+  - **EMPTY**: Render accessible empty state with "Clear Filters" action when no invoices match the URL status query.
+  - **ERROR**: Render ErrorBoundary fallback card with a retry callback and correlation ID.
+  - **OFFLINE**: Disable mutation buttons with tooltip indicating offline network status.
+  - **DISABLED**: Disable Approve/Reject controls when user role is Viewer or invoice is already locked.
+  - **SUCCESS**: Optimistically update badge to Approved/Rejected and persist audit log timestamp.
+
+- **Concrete Input / Output Contract**:
+  - Given Input: `{"invoice_id": "inv_8841", "workspace_id": "ws_102", "decision": "REJECTED", "reason": "Missing PO number"}`
+  - Expected Output: `{"status": "ok", "data": {"id": "inv_8841", "state": "REJECTED", "updated_at": "2026-11-09T22:15:00Z"}}`
+
+# 5. VERIFICATION LOOP & OUTPUT CONTRACT (Recency Anchor)
+- **Plan First (Human Approval Gate)**: Generate a structured Implementation Plan artifact first and pause for my approval before modifying any source code files.
+- **Red-Green-Refactor TDD & Automated Verification**: Write behavior-first unit/integration tests covering happy path, validation failure, and unauthorized access BEFORE or alongside implementation. Run `pnpm typecheck && pnpm lint && pnpm test --filter invoices` until the suite is 100% green.
+- **Deliverable Contract**: Generate an Implementation Plan artifact first and wait for approval. Upon completion, summarize modified files, RTL + MSW test results, and any remaining edge-case assumptions.
+EOF_PROMPT
+
+echo "✅ Success! Created AGENTS.md, .agents/rules/architecture-boundaries.md, .agents/skills/verify-vertical-slice/SKILL.md, specs/, and TASK_PROMPT.md"
+echo "👉 Next step in Antigravity chat or agy CLI, run:"
+echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
+
+
+
+================================================================================
+FILE PATH: TASK_PROMPT.md
+================================================================================
+
+/plan /grill-me # 1. ROLE & OBJECTIVE (Primacy Anchor)
+Act as a Senior Next.js 15 & React 19 Full-Stack Architect specializing in App Router Server Components, TanStack Query v5 cache boundaries, and Zod Server Actions.
+OBJECTIVE: Implement the role-based invoice approval vertical slice with optimistic status transitions so that workspace managers can filter, approve, or reject invoices with zero full-page reloads and strict server-side ownership checks.
+
+# 2. CONTEXT & PINNED STACK
+- **Target Files to Modify**: @src/app/(dashboard)/invoices/page.tsx, @src/features/invoices/components/InvoiceList.tsx, @src/features/invoices/components/InvoiceControls.tsx, @src/features/invoices/invoice-actions.ts
+- **Reference Interfaces & Services**: @src/types/invoice.ts, @src/services/billing-service.ts, @src/lib/auth.ts
+- **Pinned Stack**: Next.js 15 App Router, React 19, TypeScript 5.x (strict), Tailwind CSS, TanStack Query v5, Zustand (UI state only), Zod, Vitest, React Testing Library + MSW
+- **Library Guardrail**: Do NOT introduce Redux, Axios, moment.js, or legacy Next.js Pages Router patterns (getServerSideProps).
+- **Visual / Issue Context**: See attached mockup for InvoiceCard layout and inline rejection reason popover.
+
+# 3. ARCHITECTURAL INVARIANTS & CONSTRAINTS
+- **State & Boundary Rules**:
+1. Import invoke strictly from '@tauri-apps/api/core' (NEVER deprecated v1 '@tauri-apps/api/tauri').
+2. Define Rust commands with #[tauri::command] returning Result<OutputDto, String> and manage shared state via tauri::State<'_, Mutex<AppState>>.
+3. Register every command inside tauri::generate_handler![...] in src-tauri/src/lib.rs.
+- **Runtime, Hardware & Security Limits**:
+1. Canonicalize and validate all incoming file paths in Rust to prevent path traversal (../../../etc/passwd) outside allowed directories.
+2. Declare explicit, least-privilege permissions in src-tauri/capabilities/default.json (never allow-all scopes).
+3. Preserve tauri.conf.json build chain and add matching IPC mocks in src/__mocks__/ for Vitest.
+- **Restricted / Generated Files**: Do NOT manually edit src/generated/, prisma/generated/, openapi/generated/, or pnpm-lock.yaml.
+
+# 4. SCOPED VERTICAL-SLICE TASK STEPS & STATE EXAMPLES
+Execute the following steps in sequential order:
+1. Define the Zod input/output schemas (ApproveInvoiceSchema, RejectInvoiceSchema) and discriminated union return types in @src/features/invoices/invoice-schema.ts.
+2. Implement the server service logic in @src/services/billing-service.ts and wire validated Server Actions in @src/features/invoices/invoice-actions.ts with cache tag invalidation.
+3. Build @src/features/invoices/components/InvoiceList.tsx as an async Server Component with exported InvoiceListSkeleton, and wire synchronous <Suspense fallback={<InvoiceListSkeleton />}> in @src/app/(dashboard)/invoices/page.tsx.
+4. Implement the 'use client' leaf component @src/features/invoices/components/InvoiceControls.tsx using useOptimistic and useTransition for instant approve/reject feedback.
+5. Write behavior-first RTL + MSW integration tests verifying skeleton loading, accessible role queries (getByRole), and optimistic rollback on server failure.
+
+- **Required Explicit UI & Domain State Transitions**:
+  - **LOADING**: Render <InvoiceListSkeleton /> with matching card height inside page.tsx <Suspense> boundary.
+  - **EMPTY**: Render accessible empty state with "Clear Filters" action when no invoices match the URL status query.
+  - **ERROR**: Render ErrorBoundary fallback card with a retry callback and correlation ID.
+  - **OFFLINE**: Disable mutation buttons with tooltip indicating offline network status.
+  - **DISABLED**: Disable Approve/Reject controls when user role is Viewer or invoice is already locked.
+  - **SUCCESS**: Optimistically update badge to Approved/Rejected and persist audit log timestamp.
+
+- **Concrete Input / Output Contract**:
+  - Given Input: `{"invoice_id": "inv_8841", "workspace_id": "ws_102", "decision": "REJECTED", "reason": "Missing PO number"}`
+  - Expected Output: `{"status": "ok", "data": {"id": "inv_8841", "state": "REJECTED", "updated_at": "2026-11-09T22:15:00Z"}}`
+
+# 5. VERIFICATION LOOP & OUTPUT CONTRACT (Recency Anchor)
+- **Plan First (Human Approval Gate)**: Generate a structured Implementation Plan artifact first and pause for my approval before modifying any source code files.
+- **Red-Green-Refactor TDD & Automated Verification**: Write behavior-first unit/integration tests covering happy path, validation failure, and unauthorized access BEFORE or alongside implementation. Run `pnpm typecheck && pnpm lint && pnpm test --filter invoices` until the suite is 100% green.
+- **Deliverable Contract**: Generate an Implementation Plan artifact first and wait for approval. Upon completion, summarize modified files, RTL + MSW test results, and any remaining edge-case assumptions.
+
+
+================================================================================
+FILE PATH: AGENTS.md
+================================================================================
+
+# AGENTS.md — Persistent Repository Context & Agent Contract
+
+## Product
+Multi-tenant B2B financial workflow and spend management SaaS application used by finance managers and department leads.
+
+## Stack
+TypeScript 5.7, Next.js 15 (App Router), React 19, Tailwind CSS v4, PostgreSQL 16, Prisma ORM, TanStack Query v5, Zustand, Zod, Vitest, React Testing Library, Mock Service Worker (MSW), Playwright.
+
+## Repository Structure
+```text
+src/app/ -> Synchronous route shells, layouts, and <Suspense> boundaries
+src/features/<domain>/ -> Domain Server Components, leaf Client Components, and Server Actions
+src/services/ -> Pure business logic and data orchestration
+src/lib/ -> Shared infrastructure, auth session helpers, and DB client
+src/types/ -> Shared TypeScript interfaces and domain DTOs
+```
+
+## Commands
+```bash
+Install: pnpm install
+Dev Server: pnpm dev
+Typecheck: pnpm typecheck
+Lint: pnpm lint
+Unit/Integration Tests: pnpm test
+Single File Test: pnpm vitest run <path/to/file.test.tsx>
+E2E Tests: pnpm test:e2e
+Production Build: pnpm build
+```
+
+## Architecture
+- Keep route files (app/**/page.tsx) synchronous composition shells; never run inline DB/API queries in page.tsx.
+- Feature components default to async Server Components; place 'use client' strictly on interactive leaf components.
+- Page owns <Suspense>, Feature file exports matching *Skeleton at the bottom of the file.
+- Keep server data in Server Components or TanStack Query v5 cache; never copy server data into global Zustand stores or useEffect state.
+
+## Coding Conventions
+- Prefer named exports for all components and services.
+- Use composition (children and React.ReactNode slots) instead of boolean layout props (e.g., avoid hasHeader, showFooter).
+- Use stable entity IDs (item.id) for React list keys; never use array index keys.
+- Calculate derived state inline during render; never compute derived state inside useEffect.
+
+## Testing
+- Enforce Red-Green-Refactor TDD for every vertical slice.
+- Query DOM elements strictly via React Testing Library accessibility hierarchy: getByRole -> getByLabelText -> getByText.
+- Mock network boundaries with MSW; never mock internal custom hooks or use UI snapshot tests.
+
+## Security
+- Enforce server-side workspace and resource ownership checks inside every Server Action and API route.
+- Treat client inputs (roles, prices, tenant IDs, user IDs) as untrusted; validate all external inputs with Zod at system boundaries.
+- Never log raw JWTs, API keys, or PII in server or client logs.
+
+## Database
+- Prohibit destructive database migrations (DROP TABLE, DROP COLUMN) without explicit human approval.
+- Require a non-blocking backfill migration plan whenever adding required columns to populated tables.
+- Never edit already-applied migration files under prisma/migrations/.
+
+## Generated Files
+Never manually edit files in:
+- src/generated/
+- prisma/generated/
+- openapi/generated/
+- pnpm-lock.yaml
+Regenerate types via: pnpm db:generate && pnpm openapi:codegen
+
+
+
+================================================================================
+FILE PATH: apps/mobile/AGENTS.md
+================================================================================
+
+# AGENTS.md (apps/mobile)
+> Supplementary subproject instructions. Precedence: Nearest AGENTS.md in directory tree wins. Inherits root `/AGENTS.md` policies.
+
+## Commands (Local Overrides)
+```bash
+Test Package Only: pnpm --filter @app/mobile test
+Typecheck Package: pnpm --filter @app/mobile typecheck
+```
+
+## Subproject Architecture & Runtime Constraints
+Enforce 60/120 fps frame budget; run all TurboModule calls on background queues.
+
+
+
+================================================================================
+FILE PATH: .agents/rules/architecture-boundaries.md
+================================================================================
+
+---
+trigger: always_on
+description: Enforces strict UI/Server boundary separation, state placement, and security validation rules.
+---
+
+# ARCHITECTURE-BOUNDARIES — Architectural & Security Invariants
+
+## Mandatory Boundary Rules
+1. Import invoke strictly from '@tauri-apps/api/core' (NEVER deprecated v1 '@tauri-apps/api/tauri').
+2. Define Rust commands with #[tauri::command] returning Result<OutputDto, String> and manage shared state via tauri::State<'_, Mutex<AppState>>.
+3. Register every command inside tauri::generate_handler![...] in src-tauri/src/lib.rs.
+
+## Runtime & Security Enforcement
+1. Canonicalize and validate all incoming file paths in Rust to prevent path traversal (../../../etc/passwd) outside allowed directories.
+2. Declare explicit, least-privilege permissions in src-tauri/capabilities/default.json (never allow-all scopes).
+3. Preserve tauri.conf.json build chain and add matching IPC mocks in src/__mocks__/ for Vitest.
+
+## Do-Not-Edit Paths
+Do NOT manually edit src/generated/, prisma/generated/, openapi/generated/, or pnpm-lock.yaml.
+
+
+
+================================================================================
+FILE PATH: .agents/skills/verify-vertical-slice/SKILL.md
+================================================================================
+
+---
+name: verify-vertical-slice
+description: "Executes the project typecheck, linter, and scoped unit/integration test suite for a completed vertical slice. Use when verifying code changes before marking a task complete."
+---
+
+# Skill: verify-vertical-slice
+
+## Operational Habit & Execution Flow
+1. Do NOT read helper script internals into context. Always invoke the black-box verification script with `--help` first:
+   ```bash
+   ./.agents/skills/verify-vertical-slice/scripts/verify-slice.sh --help
+   ```
+2. Execute the Red-Green-Refactor verification loop:
+   ```bash
+   pnpm typecheck && pnpm lint && pnpm test --filter invoices
+   ```
+3. If any check fails, inspect the failing assertion or compiler diagnostic, fix the root cause without weakening tests, and re-run until exit code is 0.
+
+
+
+================================================================================
+FILE PATH: .github/copilot-instructions.md
+================================================================================
+
+# GitHub Copilot Repository Instructions
+
+## Product & Pinned Tech Stack
+Multi-tenant B2B financial workflow and spend management SaaS application used by finance managers and department leads.
+- **Pinned Stack**: Next.js 15 App Router, React 19, TypeScript 5.x (strict), Tailwind CSS, TanStack Query v5, Zustand (UI state only), Zod, Vitest, React Testing Library + MSW
+- **Disallowed Libraries**: Do NOT introduce Redux, Axios, moment.js, or legacy Next.js Pages Router patterns (getServerSideProps).
+
+## Core Architecture & State Invariants
+- Keep route files (app/**/page.tsx) synchronous composition shells; never run inline DB/API queries in page.tsx.
+- Feature components default to async Server Components; place 'use client' strictly on interactive leaf components.
+- Page owns <Suspense>, Feature file exports matching *Skeleton at the bottom of the file.
+- Keep server data in Server Components or TanStack Query v5 cache; never copy server data into global Zustand stores or useEffect state.
+
+## Verification Commands
+Always run and verify before completing a task:
+```bash
+pnpm typecheck && pnpm lint && pnpm test --filter invoices
+```
+
+## Security & Generated Files
+- Enforce server-side workspace and resource ownership checks inside every Server Action and API route.
+- Treat client inputs (roles, prices, tenant IDs, user IDs) as untrusted; validate all external inputs with Zod at system boundaries.
+- Never log raw JWTs, API keys, or PII in server or client logs.
+Never manually edit files in:
+- src/generated/
+- prisma/generated/
+- openapi/generated/
+- pnpm-lock.yaml
+Regenerate types via: pnpm db:generate && pnpm openapi:codegen
+
+
+
+================================================================================
+FILE PATH: .github/instructions/domain-boundaries.instructions.md
+================================================================================
+
+---
+applyTo: "src/features/**/*.tsx,src/app/**/*.tsx"
+---
+
+# Path-Scoped Engineering Rules (domain-boundaries)
+
+## Component & Boundary Contract
+1. Import invoke strictly from '@tauri-apps/api/core' (NEVER deprecated v1 '@tauri-apps/api/tauri').
+2. Define Rust commands with #[tauri::command] returning Result<OutputDto, String> and manage shared state via tauri::State<'_, Mutex<AppState>>.
+3. Register every command inside tauri::generate_handler![...] in src-tauri/src/lib.rs.
+
+## Required UI State Matrix
+  - **LOADING**: Render <InvoiceListSkeleton /> with matching card height inside page.tsx <Suspense> boundary.
+  - **EMPTY**: Render accessible empty state with "Clear Filters" action when no invoices match the URL status query.
+  - **ERROR**: Render ErrorBoundary fallback card with a retry callback and correlation ID.
+  - **OFFLINE**: Disable mutation buttons with tooltip indicating offline network status.
+  - **DISABLED**: Disable Approve/Reject controls when user role is Viewer or invoice is already locked.
+  - **SUCCESS**: Optimistically update badge to Approved/Rejected and persist audit log timestamp.
+
+## Testing & Verification
+- Enforce Red-Green-Refactor TDD for every vertical slice.
+- Query DOM elements strictly via React Testing Library accessibility hierarchy: getByRole -> getByLabelText -> getByText.
+- Mock network boundaries with MSW; never mock internal custom hooks or use UI snapshot tests.
+
+
+
+================================================================================
+FILE PATH: .github/agents/implementation-planner.agent.md
+================================================================================
+
+---
+name: implementation-planner
+description: "Researches the codebase, interviews the developer on edge cases, and produces a vertical-slice technical specification without modifying source files."
+tools: ["read", "search"]
+handoffs:
+  - label: Implement Approved Plan
+    agent: agent
+    prompt: Implement the vertical slices outlined in the approved plan above following Red-Green-Refactor TDD and run pnpm typecheck && pnpm lint && pnpm test --filter invoices for each step.
+    send: false
+---
+
+# Role Persona
+Act as a Senior Next.js 15 & React 19 Full-Stack Architect specializing in App Router Server Components, TanStack Query v5 cache boundaries, and Zod Server Actions.
+
+## Non-Negotiable Constraints
+1. Import invoke strictly from '@tauri-apps/api/core' (NEVER deprecated v1 '@tauri-apps/api/tauri').
+2. Define Rust commands with #[tauri::command] returning Result<OutputDto, String> and manage shared state via tauri::State<'_, Mutex<AppState>>.
+3. Register every command inside tauri::generate_handler![...] in src-tauri/src/lib.rs.
+1. Canonicalize and validate all incoming file paths in Rust to prevent path traversal (../../../etc/passwd) outside allowed directories.
+2. Declare explicit, least-privilege permissions in src-tauri/capabilities/default.json (never allow-all scopes).
+3. Preserve tauri.conf.json build chain and add matching IPC mocks in src/__mocks__/ for Vitest.
+
+
+
+================================================================================
+FILE PATH: .github/workflows/copilot-setup-steps.yml
+================================================================================
+
+name: "Copilot Setup Steps"
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies & pre-warm test runners
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm typecheck && pnpm lint && pnpm test --filter invoices
+
+
+
+================================================================================
+FILE PATH: jules-setup.sh
+================================================================================
+
+#!/usr/bin/env bash
+# Google Jules — Codebases -> Configuration -> Initial Setup (Run and Snapshot)
+set -e
+
+# 1. Inspect pre-installed Ubuntu VM tool versions
+set +x; . /opt/environment_summary.sh
+
+# 2. Install project dependencies and compile bindings
+pnpm install
+
+# 3. Validate build, typecheck, and test suite for VM Snapshot
+pnpm typecheck && pnpm lint && pnpm test --filter invoices
+
+echo "Jules VM Snapshot validated and ready for autonomous tasks!"
+
+# ----------------------------------------------------------------------------
+# Programmatic Jules v1alpha API Payload (POST https://jules.googleapis.com/v1alpha/sessions)
+# ----------------------------------------------------------------------------
+# {
+#   "prompt": "Implement the role-based invoice approval vertical slice with optimistic status transitions",
+#   "requirePlanApproval": true,
+#   "automationMode": "AUTO_CREATE_PR"
+# }
+
+
+
+================================================================================
+FILE PATH: .specify/memory/constitution.md
+================================================================================
+
+# Project Constitution (.specify/memory/constitution.md)
+> Immutable engineering principles governing every Spec Kit, Antigravity, Copilot, and Jules session.
+
+## Non-Negotiable Engineering Guardrails
+1. TDD is non-negotiable: write failing behavior-first tests before application code.
+2. All database persistence must go through src/services/.
+3. Zero main-thread or SSR blocking on static route shells.
+4. Every external input must be validated with a Zod schema.
+
+## Mandatory Verification Gate
+Every pull request and subagent vertical slice must pass:
+```bash
+pnpm typecheck && pnpm lint && pnpm test --filter invoices
+```
+
+## Restricted Paths
+Do NOT manually edit src/generated/, prisma/generated/, openapi/generated/, or pnpm-lock.yaml.
+
+
+
+================================================================================
+FILE PATH: specs/001-feature/spec.md
+================================================================================
+
+# Feature Specification (specs/001-feature/spec.md)
+> **Zone A — Product Intent ("What & Why")**: Deliberately free of implementation stack bias.
+
+## 1. Plain-Language Summary & User Intent
+Build a team invoice approval workflow where workspace managers can filter pending invoices, preview line items, and approve or reject invoices with optimistic UI feedback and role-based audit logging.
+
+## 2. Target User Persona
+
+
+## 3. Observable Acceptance Criteria (EARS Notation)
+1. **WHEN** a non-admin workspace member attempts to approve or reject an invoice, **THE SYSTEM SHALL** deny the mutation at the Server Action boundary, log an unauthorized audit event, and return a typed FORBIDDEN error union.
+2. **WHEN** a workspace manager clicks Reject without providing a rejection note of at least 10 characters, **THE SYSTEM SHALL** prevent submission and display an accessible inline validation message linked via aria-describedby.
+3. **WHEN** an invoice approval request succeeds or fails over the network, **THE SYSTEM SHALL** immediately transition the UI via useOptimistic and automatically roll back to PENDING with a retry toast if the server returns an error.
+
+## 4. Required User Experience States
+  - **LOADING**: Render <InvoiceListSkeleton /> with matching card height inside page.tsx <Suspense> boundary.
+  - **EMPTY**: Render accessible empty state with "Clear Filters" action when no invoices match the URL status query.
+  - **ERROR**: Render ErrorBoundary fallback card with a retry callback and correlation ID.
+  - **OFFLINE**: Disable mutation buttons with tooltip indicating offline network status.
+  - **DISABLED**: Disable Approve/Reject controls when user role is Viewer or invoice is already locked.
+  - **SUCCESS**: Optimistically update badge to Approved/Rejected and persist audit log timestamp.
+
+
+
+================================================================================
+FILE PATH: specs/001-feature/tasks.md
+================================================================================
+
+# Dependency-Ordered Vertical-Slice Tasks (specs/001-feature/tasks.md)
+> **Zone B — Technical Execution ("How & Verify")**: Each task cuts a thin end-to-end tracer bullet across schema, service, boundary, UI, and tests.
+> Legend: `[HITL]` = Interactive Human-in-the-Loop Co-Piloting | `[AFK]` = Autonomous Cloud/Subagent | `[P]` = Parallelizable (/fleet or /teamwork)
+
+- [ ] **T001** [HITL] **Invoice Approval Schema, Service & Ownership Guard**
+  - *End-to-End Tracer Layers*: Zod schema + billingService.updateInvoiceDecision() + Server Action auth guard + unit test
+  - *Verification*: `pnpm typecheck && pnpm lint && pnpm test --filter invoices`
+
+- [ ] **T002** [P] [AFK] **Async Server InvoiceList + Skeleton & Synchronous Page Shell**
+  - *End-to-End Tracer Layers*: page.tsx <Suspense> shell + async InvoiceList.tsx + InvoiceListSkeleton + MSW fixture
+  - *Verification*: `pnpm typecheck && pnpm lint && pnpm test --filter invoices`
+
+- [ ] **T003** [P] [AFK] **Optimistic Leaf InvoiceControls & RTL Integration Suite**
+  - *End-to-End Tracer Layers*: 'use client' InvoiceControls.tsx (useOptimistic/useTransition) + RTL getByRole & rollback test
+  - *Verification*: `pnpm typecheck && pnpm lint && pnpm test --filter invoices`
+
+

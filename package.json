@@ -1,0 +1,94 @@
+{
+  "name": "specforge-studio",
+  "version": "1.0.0",
+  "description": "SpecForge Studio — AI Coding Agent Prompt & Context Architect for Ubuntu Desktop",
+  "homepage": "https://github.com/defiqantcoder/specforge-studio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/defiqantcoder/specforge-studio.git"
+  },
+  "author": {
+    "name": "defiqantcoder",
+    "email": "starwarshellyeah69@pm.me"
+  },
+  "license": "MIT",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "electron:compile": "tsc -p tsconfig.electron.json",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && npm run electron:compile && electron . --no-sandbox\"",
+    "electron:start": "npm run build && npm run electron:compile && electron . --no-sandbox",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder --linux",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.5",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "electron": "^35.2.1",
+    "electron-builder": "^26.0.12",
+    "jsdom": "^26.1.0",
+    "tailwindcss": "^4.1.5",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.4",
+    "vitest": "^3.1.2",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.specforge.studio",
+    "productName": "SpecForge Studio",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "linux": {
+      "target": [
+        "deb",
+        "AppImage",
+        "dir"
+      ],
+      "executableName": "specforge-studio",
+      "category": "Development",
+      "icon": "build/icons",
+      "synopsis": "AI Coding Agent Prompt & Context Architect",
+      "description": "Turn plain-English ideas into spec-driven AI coding prompts, AGENTS.md, Copilot/Antigravity/Jules configs, and EARS vertical-slice plans.",
+      "desktop": {
+        "entry": {
+          "Name": "SpecForge Studio",
+          "Comment": "AI Coding Agent Prompt & Context Architect",
+          "Categories": "Development;IDE;Utility;",
+          "StartupWMClass": "specforge-studio"
+        }
+      }
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1"
+      ]
+    }
+  }
+}
