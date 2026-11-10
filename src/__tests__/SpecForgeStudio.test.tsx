@@ -449,6 +449,46 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(screen.getByText(/No project presets saved yet/i)).toBeTruthy();
   });
 
+
+  it('handles duplicate preset names and invalid JSON in localStorage gracefully', async () => {
+    // 1. Invalid JSON
+    localStorage.setItem('specforge_saved_presets_v1', '{ invalid json');
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Should still open with 0 saved presets since invalid JSON is caught
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    expect(savedProjectsBtn).toBeTruthy();
+
+    // 2. Duplicate preset names
+    fireEvent.click(savedProjectsBtn);
+
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'Duplicate Name' } });
+
+    const savePresetBtn = screen.getByRole('button', { name: /Save Current as Preset/i });
+    fireEvent.click(savePresetBtn);
+
+    // The previous click saves the preset, but also clears the input field.
+    // So we need to type 'Duplicate Name' again
+    fireEvent.change(presetNameInput, { target: { value: 'Duplicate Name' } });
+
+    // Save another one with the same name
+    fireEvent.click(savePresetBtn);
+
+    const rawSaved = localStorage.getItem('specforge_saved_presets_v1');
+    expect(rawSaved).toBeTruthy();
+    const parsedSaved = JSON.parse(rawSaved!);
+
+    expect(parsedSaved).toHaveLength(2);
+    expect(parsedSaved[0].name).toBe('Duplicate Name');
+    expect(parsedSaved[1].name).toBe('Duplicate Name');
+    expect(parsedSaved[0].id).not.toBe(parsedSaved[1].id);
+  });
+
   it('rejects malformed saved presets with invalid array item schemas on startup', async () => {
     localStorage.setItem(
       'specforge_saved_presets_v1',
