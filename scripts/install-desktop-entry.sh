@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UNPACKED_BIN="${APP_DIR}/release/linux-unpacked/specforge-studio"
-APPIMAGE_BIN="${APP_DIR}/release/SpecForge Studio-1.0.0.AppImage"
+APPIMAGE_BIN="$(ls -t "${APP_DIR}"/release/SpecForge\ Studio-*.AppImage 2>/dev/null | head -n 1 || true)"
 ICON_PATH="${APP_DIR}/build/icons/512x512.png"
 DESKTOP_DIR="${HOME}/.local/share/applications"
 DESKTOP_FILE="${DESKTOP_DIR}/specforge-studio.desktop"

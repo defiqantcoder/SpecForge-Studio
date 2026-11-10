@@ -1,6 +1,6 @@
 {
   "name": "specforge-studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SpecForge Studio — AI Coding Agent Prompt & Context Architect for Ubuntu Desktop",
   "homepage": "https://github.com/defiqantcoder/specforge-studio",
   "repository": {
@@ -21,7 +21,7 @@
     "electron:compile": "tsc -p tsconfig.electron.json",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && npm run electron:compile && electron . --no-sandbox\"",
     "electron:start": "npm run build && npm run electron:compile && electron . --no-sandbox",
-    "electron:build": "npm run build && npm run electron:compile && electron-builder --linux",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder --linux --publish never",
     "test": "vitest run"
   },
   "dependencies": {
