@@ -1,7 +1,9 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } from 'electron';
+import type { IpcMainInvokeEvent } from 'electron';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import type {
   DesktopAppInfo,
   ExportWorkspaceRequest,
@@ -12,11 +14,8 @@ import type {
 import { resolveSafeChildPath, sanitizeBlueprintId } from './pathSecurity';
 
 /**
- * Ubuntu 24.04 AppArmor restricts unprivileged user namespaces by default
- * (kernel.apparmor_restrict_unprivileged_userns=1). When running unpackaged,
- * via AppImage, or without root-owned setuid chrome-sandbox, Chromium's OS
- * namespace sandbox cannot initialize. Keep renderer isolation strict
- * (contextIsolation, nodeIntegration: false) while checking SUID sandbox availability.
+ * Configures the Chromium Linux sandbox flag when Ubuntu 24.04 AppArmor
+ * restricts unprivileged user namespaces and no root-owned setuid sandbox exists.
  */
 function configureLinuxSandbox(): void {
   if (process.platform !== 'linux') return;
@@ -50,14 +49,29 @@ function configureLinuxSandbox(): void {
 
 configureLinuxSandbox();
 
-const isDev = !app.isPackaged && Boolean(process.env.VITE_DEV_SERVER_URL || process.argv.includes('--dev') || process.env.npm_lifecycle_event === 'electron:dev');
+const isDev =
+  !app.isPackaged &&
+  Boolean(
+    process.env.VITE_DEV_SERVER_URL ||
+      process.argv.includes('--dev') ||
+      process.env.npm_lifecycle_event === 'electron:dev'
+  );
 
+const DIST_INDEX_PATH = path.join(__dirname, '../dist/index.html');
+const DIST_INDEX_URL = pathToFileURL(DIST_INDEX_PATH).href;
+
+/**
+ * Returns the directory where local SpecForge blueprints are stored, creating it if absent.
+ */
 function getBlueprintsDir(): string {
   const dir = path.join(app.getPath('userData'), 'blueprints');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
+/**
+ * Returns the path to the local desktop settings JSON file.
+ */
 function getSettingsPath(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
@@ -67,6 +81,9 @@ interface StoredSettings {
   geminiKeyPlain?: string;
 }
 
+/**
+ * Reads the configured Gemini API key from OS-encrypted storage or GEMINI_API_KEY env var.
+ */
 function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'none' } {
   try {
     const settingsPath = getSettingsPath();
@@ -92,12 +109,18 @@ function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'none'
   return { key: '', source: 'none' };
 }
 
+/**
+ * Masks an API key for safe display in the UI.
+ */
 function maskKey(key: string): string {
   if (!key) return '';
   if (key.length <= 8) return '••••••••';
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;
 }
 
+/**
+ * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
+ */
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
@@ -132,6 +155,9 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
 
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * Resolves the application icon path for packaged or development builds.
+ */
 function resolveAppIcon(): string | undefined {
   const candidates = [
     path.join(__dirname, '../build/icons/512x512.png'),
@@ -141,6 +167,30 @@ function resolveAppIcon(): string | undefined {
   return candidates.find((p) => p && fs.existsSync(p));
 }
 
+/**
+ * Validates that an incoming IPC invocation originates from the trusted main application frame.
+ */
+function assertTrustedIpcSender(event: IpcMainInvokeEvent): void {
+  const senderUrl = event.senderFrame?.url || '';
+  if (!senderUrl) {
+    throw new Error('Rejected IPC call from missing sender frame');
+  }
+  const parsed = new URL(senderUrl);
+  if (isDev) {
+    const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+    if (parsed.origin !== new URL(devUrl).origin) {
+      throw new Error(`Rejected IPC call from untrusted origin: ${parsed.origin}`);
+    }
+    return;
+  }
+  if (parsed.href !== DIST_INDEX_URL) {
+    throw new Error('Rejected IPC call from untrusted document');
+  }
+}
+
+/**
+ * Creates the hardened primary BrowserWindow with strict 3-tier isolation and navigation guards.
+ */
 function createWindow(): void {
   const iconPath = resolveAppIcon();
 
@@ -163,15 +213,30 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) {
-      void shell.openExternal(url);
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        void shell.openExternal(url);
+      }
+    } catch {
+      // Invalid URL
     }
     return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
-    const allowedOrigin = isDev ? 'http://localhost:5173' : 'file://';
-    if (!targetUrl.startsWith(allowedOrigin)) {
+    try {
+      const parsedUrl = new URL(targetUrl);
+      if (isDev) {
+        const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+        const allowedOrigin = new URL(devUrl).origin;
+        if (parsedUrl.origin !== allowedOrigin) {
+          event.preventDefault();
+        }
+      } else if (parsedUrl.href !== DIST_INDEX_URL) {
+        event.preventDefault();
+      }
+    } catch {
       event.preventDefault();
     }
   });
@@ -180,7 +245,7 @@ function createWindow(): void {
     const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     void mainWindow.loadURL(devUrl);
   } else {
-    void mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    void mainWindow.loadFile(DIST_INDEX_PATH);
   }
 
   mainWindow.on('closed', () => {
@@ -188,8 +253,12 @@ function createWindow(): void {
   });
 }
 
+/**
+ * Registers all validated IPC handlers for desktop dialogs, blueprints, clipboard, and AI calls.
+ */
 function registerIpcHandlers(): void {
-  ipcMain.handle('app:getInfo', (): DesktopAppInfo => {
+  ipcMain.handle('app:getInfo', (event): DesktopAppInfo => {
+    assertTrustedIpcSender(event);
     return {
       name: app.getName(),
       version: app.getVersion(),
@@ -201,7 +270,8 @@ function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle('clipboard:writeText', (_event, text: string): boolean => {
+  ipcMain.handle('clipboard:writeText', (event, text: string): boolean => {
+    assertTrustedIpcSender(event);
     if (typeof text !== 'string') return false;
     clipboard.writeText(text);
     return true;
@@ -209,16 +279,24 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     'dialog:saveFile',
-    async (_event, args: { suggestedFilename: string; content: string }) => {
-      if (!args || typeof args.content !== 'string') {
+    async (event, args: { suggestedFilename: string; content: string }) => {
+      assertTrustedIpcSender(event);
+      if (
+        !args ||
+        typeof args.content !== 'string' ||
+        (args.suggestedFilename !== undefined && typeof args.suggestedFilename !== 'string')
+      ) {
         return { canceled: true, error: 'Invalid file payload' };
       }
-      const cleanName = path.basename(String(args.suggestedFilename || 'artifact.md'));
+      const cleanName = path.basename(args.suggestedFilename || 'artifact.md');
       const result = await dialog.showSaveDialog(mainWindow ?? undefined!, {
         title: 'Save SpecForge Artifact',
         defaultPath: path.join(os.homedir(), cleanName),
         filters: [
-          { name: 'Markdown / Config / Script', extensions: ['md', 'txt', 'yml', 'yaml', 'sh', 'json'] },
+          {
+            name: 'Markdown / Config / Script',
+            extensions: ['md', 'txt', 'yml', 'yaml', 'sh', 'json']
+          },
           { name: 'All Files', extensions: ['*'] }
         ]
       });
@@ -235,7 +313,8 @@ function registerIpcHandlers(): void {
     }
   );
 
-  ipcMain.handle('dialog:exportWorkspace', async (_event, req: ExportWorkspaceRequest) => {
+  ipcMain.handle('dialog:exportWorkspace', async (event, req: ExportWorkspaceRequest) => {
+    assertTrustedIpcSender(event);
     if (!req || !Array.isArray(req.files) || req.files.length === 0) {
       return { canceled: true, error: 'No artifact files provided' };
     }
@@ -274,7 +353,8 @@ function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle('blueprints:list', (): SavedBlueprint[] => {
+  ipcMain.handle('blueprints:list', (event): SavedBlueprint[] => {
+    assertTrustedIpcSender(event);
     const dir = getBlueprintsDir();
     const entries = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
     const items: SavedBlueprint[] = [];
@@ -297,16 +377,26 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     'blueprints:save',
-    (_event, input: Omit<SavedBlueprint, 'id' | 'updatedAt'> & { id?: string }): SavedBlueprint => {
-      if (!input || typeof input.formState !== 'string') {
+    (
+      event,
+      input: Omit<SavedBlueprint, 'id' | 'updatedAt'> & { id?: string }
+    ): SavedBlueprint => {
+      assertTrustedIpcSender(event);
+      if (
+        !input ||
+        typeof input.formState !== 'string' ||
+        (input.title !== undefined && typeof input.title !== 'string') ||
+        (input.id !== undefined && typeof input.id !== 'string') ||
+        (input.tag !== undefined && typeof input.tag !== 'string')
+      ) {
         throw new Error('Invalid blueprint payload');
       }
       const dir = getBlueprintsDir();
       const id = sanitizeBlueprintId(input.id || input.title || 'blueprint');
       const record: SavedBlueprint = {
         id,
-        title: String(input.title || 'Untitled Blueprint').trim() || 'Untitled Blueprint',
-        tag: input.tag ? String(input.tag).trim().toLowerCase() : '',
+        title: input.title?.trim() || 'Untitled Blueprint',
+        tag: input.tag ? input.tag.trim().toLowerCase() : '',
         updatedAt: Date.now(),
         formState: input.formState
       };
@@ -317,7 +407,9 @@ function registerIpcHandlers(): void {
     }
   );
 
-  ipcMain.handle('blueprints:delete', (_event, id: string): boolean => {
+  ipcMain.handle('blueprints:delete', (event, id: string): boolean => {
+    assertTrustedIpcSender(event);
+    if (typeof id !== 'string') throw new Error('Invalid id');
     const dir = getBlueprintsDir();
     const safeId = sanitizeBlueprintId(id);
     const filePath = resolveSafeChildPath(dir, `${safeId}.json`);
@@ -328,8 +420,16 @@ function registerIpcHandlers(): void {
     return false;
   });
 
-  ipcMain.handle('blueprints:exportFile', async (_event, blueprint: SavedBlueprint) => {
-    const safeSlug = sanitizeBlueprintId(blueprint?.title || 'specforge-blueprint');
+  ipcMain.handle('blueprints:exportFile', async (event, blueprint: SavedBlueprint) => {
+    assertTrustedIpcSender(event);
+    if (
+      !blueprint ||
+      typeof blueprint !== 'object' ||
+      (blueprint.title !== undefined && typeof blueprint.title !== 'string')
+    ) {
+      return { canceled: true, error: 'Invalid blueprint payload' };
+    }
+    const safeSlug = sanitizeBlueprintId(blueprint.title || 'specforge-blueprint');
     const result = await dialog.showSaveDialog(mainWindow ?? undefined!, {
       title: 'Export SpecForge Blueprint (.specforge.json)',
       defaultPath: path.join(os.homedir(), `${safeSlug}.specforge.json`),
@@ -344,7 +444,8 @@ function registerIpcHandlers(): void {
     return { canceled: false, filePath: result.filePath };
   });
 
-  ipcMain.handle('blueprints:importFile', async () => {
+  ipcMain.handle('blueprints:importFile', async (event) => {
+    assertTrustedIpcSender(event);
     const result = await dialog.showOpenDialog(mainWindow ?? undefined!, {
       title: 'Import SpecForge Blueprint (.json)',
       defaultPath: os.homedir(),
@@ -367,7 +468,8 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('settings:getGeminiKey', (): GeminiSettingsInfo => {
+  ipcMain.handle('settings:getGeminiKey', (event): GeminiSettingsInfo => {
+    assertTrustedIpcSender(event);
     const { key, source } = readStoredGeminiKey();
     return {
       hasKey: Boolean(key),
@@ -376,14 +478,25 @@ function registerIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle('settings:setGeminiKey', (_event, apiKey: string): GeminiSettingsInfo => {
+  ipcMain.handle('settings:setGeminiKey', (event, apiKey: string): GeminiSettingsInfo => {
+    assertTrustedIpcSender(event);
     if (typeof apiKey !== 'string') {
       throw new Error('API key must be a string');
     }
     return writeStoredGeminiKey(apiKey);
   });
 
-  ipcMain.handle('ai:generateStructured', async (_event, req: GeminiStructuredRequest) => {
+  ipcMain.handle('ai:generateStructured', async (event, req: GeminiStructuredRequest) => {
+    assertTrustedIpcSender(event);
+    if (
+      !req ||
+      typeof req.userQuery !== 'string' ||
+      typeof req.systemPrompt !== 'string' ||
+      !req.responseSchema ||
+      typeof req.responseSchema !== 'object'
+    ) {
+      throw new Error('Invalid request payload');
+    }
     const { key } = readStoredGeminiKey();
     if (!key) {
       throw new Error(
@@ -426,10 +539,17 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('shell:openExternal', async (_event, url: string): Promise<boolean> => {
-    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
-      await shell.openExternal(url);
-      return true;
+  ipcMain.handle('shell:openExternal', async (event, url: string): Promise<boolean> => {
+    assertTrustedIpcSender(event);
+    if (typeof url !== 'string') return false;
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        await shell.openExternal(url);
+        return true;
+      }
+    } catch {
+      // Invalid URL
     }
     return false;
   });
