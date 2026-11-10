@@ -68,6 +68,15 @@ export function resolveSafeChildPath(rootDir: string, relativePath: string): str
       if (e.code !== 'ENOENT') {
          throw e;
       }
+      try {
+        if (fs.lstatSync(currentPath).isSymbolicLink()) {
+          throw new Error(`Path traversal detected via symlink: ${relativePath}`);
+        }
+      } catch (statError: any) {
+        if (statError.code !== 'ENOENT') {
+          throw statError;
+        }
+      }
     }
   }
 
