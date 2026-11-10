@@ -119,20 +119,36 @@ function maskKey(key: string): string {
 }
 
 /**
+ * Atomically replaces settings and removes temporary data if any write step fails.
+ */
+function writeSettingsAtomically(settingsPath: string, payload: StoredSettings): void {
+  const tempPath = `${settingsPath}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+    fs.chmodSync(tempPath, 0o600);
+    fs.renameSync(tempPath, settingsPath);
+    fs.chmodSync(settingsPath, 0o600);
+  } catch (error) {
+    try {
+      fs.unlinkSync(tempPath);
+    } catch {
+      // Cleanup must not replace the original write error.
+    }
+    throw error;
+  }
+}
+
+/**
  * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
  */
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
-  const tempPath = `${settingsPath}.tmp`;
   fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 
   if (!trimmed) {
     if (fs.existsSync(settingsPath)) {
-      fs.writeFileSync(tempPath, JSON.stringify({}, null, 2), { encoding: 'utf8', mode: 0o600 });
-      fs.chmodSync(tempPath, 0o600);
-      fs.renameSync(tempPath, settingsPath);
-      fs.chmodSync(settingsPath, 0o600);
+      writeSettingsAtomically(settingsPath, {});
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {
@@ -149,10 +165,7 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
     payload.geminiKeyPlain = trimmed;
   }
 
-  fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
-  fs.chmodSync(tempPath, 0o600);
-  fs.renameSync(tempPath, settingsPath);
-  fs.chmodSync(settingsPath, 0o600);
+  writeSettingsAtomically(settingsPath, payload);
 
   return {
     hasKey: true,
