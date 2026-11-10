@@ -128,4 +128,57 @@ describe('Accessibility Contracts', () => {
     expect(personaInput.id).toBe('user-persona-input');
     expect(personaInput.tagName.toLowerCase()).toBe('input');
   });
+
+  it('verifies Blueprints modal traps focus, applies ARIA semantics, and closes on Escape', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const openButton = screen.getByRole('button', { name: /Blueprints \(/i });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    const dialog = screen.getByRole('dialog', { name: /Local Desktop Blueprints/i });
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+
+    // Press Escape to close
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Local Desktop Blueprints/i })).toBeNull();
+    });
+
+    // Focus should be restored to the button that opened it
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it('verifies AI Settings modal traps focus, applies ARIA semantics, and closes on Escape', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const openButton = screen.getByRole('button', { name: /AI Key/i });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    const dialog = screen.getByRole('dialog', { name: /Desktop AI Settings/i });
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+
+    // Press Escape to close
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Desktop AI Settings/i })).toBeNull();
+    });
+
+    // Focus should be restored to the button that opened it
+    expect(document.activeElement).toBe(openButton);
+  });
+
 });

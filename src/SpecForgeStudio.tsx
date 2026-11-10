@@ -918,6 +918,65 @@ function isValidSavedPreset(
   );
 }
 
+
+function useModalFocusTrap(
+  isOpen: boolean,
+  onClose: () => void,
+  dialogRef: React.RefObject<HTMLElement | null>
+) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+
+    if (dialog) {
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        dialog.focus();
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === 'Tab' && dialog) {
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialog) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+    };
+  }, [isOpen, onClose, dialogRef]);
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
@@ -1010,58 +1069,14 @@ export default function SpecForgeStudio() {
   >([]);
   const [presetNameInput, setPresetNameInput] = useState('');
   const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+  const cloudDialogRef = React.useRef<HTMLDivElement>(null);
+  const settingsDialogRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!presetsModalOpen) return;
+  useModalFocusTrap(presetsModalOpen, () => setPresetsModalOpen(false), presetsDialogRef);
+  useModalFocusTrap(cloudModalOpen, () => setCloudModalOpen(false), cloudDialogRef);
+  useModalFocusTrap(settingsModalOpen, () => setSettingsModalOpen(false), settingsDialogRef);
 
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const dialog = presetsDialogRef.current;
 
-    if (dialog) {
-      const focusable = dialog.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length > 0) {
-        focusable[0].focus();
-      } else {
-        dialog.focus();
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setPresetsModalOpen(false);
-      } else if (e.key === 'Tab' && dialog) {
-        const focusable = dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first || document.activeElement === dialog) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      if (previousFocus && typeof previousFocus.focus === 'function') {
-        previousFocus.focus();
-      }
-    };
-  }, [presetsModalOpen]);
 
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
@@ -3139,13 +3154,25 @@ ${slicesFormatted}
           LOCAL BLUEPRINTS & JSON IMPORT/EXPORT MODAL
          ==================================================================== */}
       {cloudModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCloudModalOpen(false);
+          }}
+        >
+          <div
+            ref={cloudDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cloud-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <HardDrive className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="cloud-dialog-title" className="text-base font-bold text-white">
                     Local Desktop Blueprints &amp; Portable Backups
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -3337,13 +3364,25 @@ ${slicesFormatted}
           DESKTOP AI SETTINGS MODAL (GEMINI API KEY)
          ==================================================================== */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSettingsModalOpen(false);
+          }}
+        >
+          <div
+            ref={settingsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <KeyRound className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="settings-dialog-title" className="text-base font-bold text-white">
                     Desktop AI Settings (Optional)
                   </h2>
                   <p className="text-xs text-slate-400">
