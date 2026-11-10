@@ -713,7 +713,7 @@ export default function SpecForgeStudio() {
       if (window.desktopAPI) {
         const res = await window.desktopAPI.exportBlueprintFile(item);
         if (!res.canceled && res.filePath) {
-          setStatusMessage({
+          setStatusMessageWithTimeout({
             type: 'success',
             text: `Exported blueprint JSON to ${res.filePath}`
           });
@@ -1659,7 +1659,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
       if (window.desktopAPI) {
         const res = await window.desktopAPI.saveFileDialog(cleanName, content);
         if (!res.canceled && res.filePath) {
-          setStatusMessage({
+          setStatusMessageWithTimeout({
             type: 'success',
             text: `Saved ${cleanName} to ${res.filePath}`
           });
