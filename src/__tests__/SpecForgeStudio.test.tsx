@@ -107,6 +107,22 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(screen.queryByText('Saved Project Presets')).toBeNull(); // Modal closed on reset
   });
 
+  it('keeps a preset saved from the default form listed after remounting', async () => {
+    const { unmount } = await act(async () => render(<SpecForgeStudio />));
+    fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g., My SaaS App'), {
+      target: { value: 'Default project' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Preset' }));
+    expect(screen.getByText('Default project')).toBeTruthy();
+
+    unmount();
+    await act(async () => { render(<SpecForgeStudio />); });
+    fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
+    expect(screen.getByText('Default project')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Load' })).toBeTruthy();
+  });
+
   it('preserves the input and list when preset persistence fails, then saves distinct IDs', async () => {
     await act(async () => { render(<SpecForgeStudio />); });
     fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
@@ -155,6 +171,21 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(screen.getByText(/could not be loaded|Could not read saved presets/)).toBeTruthy();
     }
   );
+
+  it.each([
+    { taskSteps: [42] },
+    { earsSpecs: [{ when: 'a user saves' }] },
+    { earsSpecs: ['invalid'] },
+    { verticalSlices: [{ id: 'T001', mode: 'AFK', parallel: 'yes', title: 'Task', layers: 'UI' }] }
+  ])('rejects stored presets with invalid array items: %j', async (form) => {
+    localStorage.setItem('specforge_saved_presets_v1', JSON.stringify([
+      { id: 'invalid', name: 'Invalid project', form }
+    ]));
+    await act(async () => { render(<SpecForgeStudio />); });
+    fireEvent.click(screen.getByRole('button', { name: /Saved Projects/i }));
+    expect(screen.getByText('No presets saved yet.')).toBeTruthy();
+    expect(screen.queryByText('Invalid project')).toBeNull();
+  });
 
   it('contains dialog focus, closes with Escape, and restores its trigger', async () => {
     await act(async () => { render(<SpecForgeStudio />); });

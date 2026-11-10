@@ -634,12 +634,16 @@ const DEFAULT_FORM = {
 
 // Stored JSON is untrusted; partial forms are supported, but known fields must
 // retain their established types before they can reach rendering or loading.
-function matchesDefaults(value: unknown, defaults: unknown): boolean {
-  if (Array.isArray(defaults)) return Array.isArray(value) && value.every(item => typeof item === 'string');
+function matchesDefaults(value: unknown, defaults: unknown, requireAllFields = false): boolean {
+  if (Array.isArray(defaults)) {
+    return Array.isArray(value) && value.every(item =>
+      matchesDefaults(item, defaults[0] ?? '', true));
+  }
   if (defaults && typeof defaults === 'object') {
     return Boolean(value && typeof value === 'object' && !Array.isArray(value)) &&
+      (!requireAllFields || Object.keys(defaults).every(key => Object.hasOwn(value as object, key))) &&
       Object.entries(value as Record<string, unknown>).every(([key, field]) =>
-        !(key in defaults) || matchesDefaults(field, (defaults as Record<string, unknown>)[key]));
+        !(key in defaults) || matchesDefaults(field, (defaults as Record<string, unknown>)[key], requireAllFields));
   }
   return typeof value === typeof defaults;
 }
