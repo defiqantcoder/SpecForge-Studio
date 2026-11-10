@@ -1,0 +1,88 @@
+name: CI Checks & Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fast-checks:
+    name: Lint, Typecheck, and Unit Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Compile
+        run: npm run build && npm run electron:compile
+
+  desktop-smoke-test:
+    name: Desktop Packaging & Headless Smoke Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Electron App
+        run: npm run electron:build -- --linux deb
+
+      - name: Verify .deb package
+        run: |
+          DEB_FILE=$(ls release/*.deb | head -n 1)
+          if [ -z "$DEB_FILE" ]; then
+            echo "No .deb file found in release/"
+            exit 1
+          fi
+          echo "Inspecting $DEB_FILE..."
+          dpkg-deb -I "$DEB_FILE"
+          dpkg-deb -c "$DEB_FILE"
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Headless Smoke Test
+        run: |
+          xvfb-run -a ./release/linux-unpacked/specforge-studio --no-sandbox > smoke-test.log 2>&1 &
+          PID=$!
+          echo "Started process $PID"
+          sleep 5
+          if ! kill -0 $PID 2>/dev/null; then
+            echo "Process exited prematurely. Log output:"
+            cat smoke-test.log
+            exit 1
+          fi
+          kill $PID
+
+          if grep -i "fatal" smoke-test.log; then
+            echo "Fatal error found in log output:"
+            cat smoke-test.log
+            exit 1
+          fi
+
+          echo "Smoke test passed."

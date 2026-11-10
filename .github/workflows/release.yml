@@ -2,10 +2,10 @@ name: Build Ubuntu Desktop Release
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   build-linux:
@@ -21,11 +21,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Typecheck & Test
-        run: |
-          npm run typecheck
-          npm test
 
       - name: Build Ubuntu .deb and AppImage
         run: npm run electron:build
