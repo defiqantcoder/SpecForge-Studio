@@ -65,7 +65,19 @@ export function resolveSafeChildPath(rootDir: string, relativePath: string): str
          throw new Error(`Path traversal detected via symlink: ${relativePath}`);
       }
     } catch (e: any) {
-      if (e.code !== 'ENOENT') {
+      if (e.code === 'ENOENT') {
+         // Reject dangling symlinks: if lstatSync finds a symlink but realpathSync failed with ENOENT, it's a dangling symlink
+         try {
+           const stat = fs.lstatSync(currentPath);
+           if (stat.isSymbolicLink()) {
+             throw new Error(`Path traversal detected via dangling symlink: ${relativePath}`);
+           }
+         } catch (lstatErr: any) {
+           if (lstatErr.code !== 'ENOENT') {
+             throw lstatErr;
+           }
+         }
+      } else {
          throw e;
       }
     }
