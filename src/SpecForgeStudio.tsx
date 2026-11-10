@@ -50,6 +50,9 @@ import type { DesktopAppInfo, GeminiSettingsInfo, SavedBlueprint } from './types
 const LOCAL_DRAFT_STORAGE_KEY = 'specforge-studio:draft-v1';
 const LOCAL_BLUEPRINTS_STORAGE_KEY = 'specforge-studio:blueprints-v1';
 
+const escapeMarkdownTableCell = (value: string) =>
+  value.replace(/\|/g, '\\|').replace(/\r\n|\r|\n/g, ' ');
+
 // ============================================================================
 // DUMMY-PROOF HELPER CHIPS & FILE PLACEMENT INSTRUCTIONS
 // ============================================================================
@@ -1759,7 +1762,7 @@ ${form.runtimeAndSecurityLimits}
 ## EARS Acceptance Criteria
 | When | Then The System Shall |
 | --- | --- |
-${form.earsSpecs.map(e => `| ${e.when} | ${e.shall} |`).join('\n')}
+${form.earsSpecs.map(e => `| ${escapeMarkdownTableCell(e.when)} | ${escapeMarkdownTableCell(e.shall)} |`).join('\n')}
 
 ## Vertical-Slice Task Breakdown
 ${slicesFormatted}
@@ -1936,7 +1939,9 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
   // Ensure selectedArtifact key exists when dynamic paths or filtered dock modes change
   const currentArtifactKey =
     artifacts[selectedArtifact] &&
-    (!isDockFiltered || allowedDockKeys.includes(selectedArtifact))
+    (!isDockFiltered ||
+      allowedDockKeys.includes(selectedArtifact) ||
+      (isSimpleMode && selectedArtifact === 'FULL_BLUEPRINT_REPORT.md'))
       ? selectedArtifact
       : 'TASK_PROMPT.md';
   const currentArtifact = artifacts[currentArtifactKey];

@@ -260,6 +260,40 @@ describe('SpecForgeStudio Desktop UI', () => {
   });
 
 
+  it('previews the report from its guide card in Simple Mode while retaining other filters', async () => {
+    render(<SpecForgeStudio />);
+    await waitFor(() => expect(mockApi.listBlueprints).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /2\. How to Use Your Files/i }));
+    fireEvent.click(screen.getByText('FULL_BLUEPRINT_REPORT.md', { selector: 'span' }));
+    expect(document.querySelector('pre.whitespace-pre-wrap')?.textContent).toContain('# Full Blueprint Report');
+    expect(screen.queryByRole('button', { name: '.github/copilot-instructions.md' })).toBeNull();
+
+    fireEvent.click(screen.getByText('.github/copilot-instructions.md', { selector: 'span' }));
+    expect(document.querySelector('pre.whitespace-pre-wrap')?.textContent).not.toContain('# Full Blueprint Report');
+    expect(document.querySelector('pre.whitespace-pre-wrap')?.textContent).toContain('# 1. ROLE & OBJECTIVE (Primacy Anchor)');
+  });
+
+  it('keeps pipes and multiline EARS criteria inside their report table cells', async () => {
+    localStorage.setItem('specforge-studio:draft-v1', JSON.stringify({
+      form: { earsSpecs: [
+        { when: 'first | second\r\nnext\rlast\nend', shall: 'show | result\nthen\r\nfinish' },
+        { when: 'ordinary trigger', shall: 'ordinary reaction' }
+      ] }
+    }));
+    render(<SpecForgeStudio />);
+    await waitFor(() => expect(mockApi.listBlueprints).toHaveBeenCalled());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Copy Full Spec Report/i }));
+    });
+    const report = (mockApi.copyToClipboard as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(report).toContain([
+      '| When | Then The System Shall |',
+      '| --- | --- |',
+      '| first \\| second next last end | show \\| result then finish |',
+      '| ordinary trigger | ordinary reaction |'
+    ].join('\n'));
+  });
+
   it('generates FULL_BLUEPRINT_REPORT.md and supports copy action', async () => {
     render(<SpecForgeStudio />);
 
