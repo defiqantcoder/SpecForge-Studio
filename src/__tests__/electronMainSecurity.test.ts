@@ -38,6 +38,9 @@ vi.mock('electron', () => {
       showOpenDialog: vi.fn()
     },
     BrowserWindow,
+    safeStorage: {
+      isEncryptionAvailable: vi.fn().mockReturnValue(false)
+    },
     shell: {
       openExternal: vi.fn()
     }
@@ -49,6 +52,10 @@ vi.mock('fs', () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   writeFileSync: vi.fn(),
+  openSync: vi.fn(),
+  closeSync: vi.fn(),
+  fchmodSync: vi.fn(),
+  renameSync: vi.fn(),
   readFileSync: vi.fn(),
   chmodSync: vi.fn(),
   readdirSync: vi.fn(),
@@ -68,6 +75,7 @@ process.env.NODE_ENV = 'development';
 import '../../electron/main';
 import { resolveSafeChildPath } from '../../electron/pathSecurity';
 import { ipcMain } from 'electron';
+import * as fs from 'fs';
 
 describe('Electron Main Security', () => {
   beforeEach(() => {
@@ -118,6 +126,57 @@ describe('Electron Main Security', () => {
   });
 
   describe('settings:setGeminiKey handler', () => {
+    beforeEach(() => {
+      vi.mocked(fs.openSync).mockReset().mockReturnValue(42);
+      vi.mocked(fs.writeFileSync).mockReset();
+      vi.mocked(fs.fchmodSync).mockReset();
+      vi.mocked(fs.closeSync).mockReset();
+      vi.mocked(fs.renameSync).mockReset();
+    });
+
+    const saveKey = () => (ipcMain as any)._getHandlers().get('settings:setGeminiKey')(mockEvent, 'synthetic-key');
+
+    it('creates a private file exclusively before writing and atomically replacing settings', () => {
+      saveKey();
+      const tempPath = vi.mocked(fs.openSync).mock.calls[0][0];
+      expect(tempPath).toMatch(/^\/mock\/app\/path\/settings\.json\.tmp-/);
+      expect(fs.openSync).toHaveBeenCalledWith(tempPath, 'wx', 0o600);
+      expect(fs.writeFileSync).toHaveBeenCalledWith(42, JSON.stringify({ geminiKeyPlain: 'synthetic-key' }, null, 2), { encoding: 'utf8' });
+      expect(fs.fchmodSync).toHaveBeenCalledWith(42, 0o600);
+      expect(fs.closeSync).toHaveBeenCalledWith(42);
+      expect(fs.renameSync).toHaveBeenCalledWith(tempPath, '/mock/app/path/settings.json');
+      expect(vi.mocked(fs.closeSync).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(fs.renameSync).mock.invocationCallOrder[0]);
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('retries a collision with a new name and leaves the colliding file alone', () => {
+      vi.mocked(fs.openSync).mockImplementationOnce(() => { throw Object.assign(new Error('collision'), { code: 'EEXIST' }); });
+      saveKey();
+      const calls = vi.mocked(fs.openSync).mock.calls;
+      expect(calls).toHaveLength(2);
+      expect(calls[0][0]).not.toBe(calls[1][0]);
+      expect(fs.renameSync).toHaveBeenCalledWith(calls[1][0], '/mock/app/path/settings.json');
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it.each(['EEXIST', 'EACCES'])('never cleans up a file when exclusive creation fails with %s', (code) => {
+      const error = Object.assign(new Error('open failed'), { code });
+      vi.mocked(fs.openSync).mockImplementation(() => { throw error; });
+      expect(saveKey).toThrow(error);
+      expect(fs.openSync).toHaveBeenCalledTimes(code === 'EEXIST' ? 10 : 1);
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it.each(['writeFileSync', 'fchmodSync', 'closeSync', 'renameSync'] as const)('cleans up only its own file after %s fails', (operation) => {
+      const error = new Error('operation failed');
+      vi.mocked(fs[operation]).mockImplementationOnce(() => { throw error; });
+      expect(saveKey).toThrow(error);
+      expect(fs.unlinkSync).toHaveBeenCalledExactlyOnceWith(vi.mocked(fs.openSync).mock.calls[0][0]);
+      expect(fs.closeSync).toHaveBeenCalledWith(42);
+      if (operation !== 'renameSync') expect(fs.renameSync).not.toHaveBeenCalled();
+    });
+
     it('should handle malformed payloads safely', async () => {
       const handlers = (ipcMain as any)._getHandlers();
       const handler = handlers.get('settings:setGeminiKey');

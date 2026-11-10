@@ -1,6 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
 import * as os from 'os';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -127,22 +128,35 @@ function maskKey(key: string): string {
  * Ensures that file writes, mode changes, and renames succeed together.
  */
 function atomicWriteJsonSettings(filePath: string, data: any, mode?: number): void {
-  const tempPath = `${filePath}.tmp-${Date.now()}`;
-  try {
-    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
-    if (mode !== undefined) {
-      fs.chmodSync(tempPath, mode);
-    }
-    fs.renameSync(tempPath, filePath);
-  } catch (err) {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const tempPath = `${filePath}.tmp-${randomUUID()}`;
+    let fd: number;
     try {
-      if (fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
-      }
-    } catch (cleanupErr) {
-      console.warn('Failed to clean up temporary file:', cleanupErr);
+      fd = fs.openSync(tempPath, 'wx', 0o600);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST' && attempt < 9) continue;
+      throw err;
     }
-    throw err;
+
+    try {
+      try {
+        fs.writeFileSync(fd, JSON.stringify(data, null, 2), { encoding: 'utf8' });
+        if (mode !== undefined) {
+          fs.fchmodSync(fd, mode);
+        }
+      } finally {
+        fs.closeSync(fd);
+      }
+      fs.renameSync(tempPath, filePath);
+      return;
+    } catch (err) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up temporary file:', cleanupErr);
+      }
+      throw err;
+    }
   }
 }
 
