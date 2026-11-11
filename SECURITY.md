@@ -19,18 +19,12 @@ We adhere to a strict 3-tier Electron isolation model:
 2.  **Narrow Preload Bridge (`electron/preload.ts`)**:
     *   Exposes only specific, typed domain methods via `window.desktopAPI` using `contextBridge`.
 3.  **Path-Traversal Guard (`electron/pathSecurity.ts`)**:
-
-
-    *   `resolveSafeChildPath` validates relative export paths lexically, rejecting paths that resolve outside the selected repository, absolute paths, null bytes, and root-equivalent `.` writes.
-    *   These checks do not resolve symlinks. Writes through symlinks pointing outside the repository can escape it, so strict filesystem confinement is not guaranteed.
-
+    *   `resolveSafeChildPath` validates relative export paths both lexically and canonically (via `fs.realpathSync` / `fs.lstatSync` / `fs.readlinkSync`), rejecting paths that resolve outside the selected repository, absolute paths, null bytes, root-equivalent `.` writes, and symlink escapes (including intermediate directory symlinks and dangling symlinks).
 
 ## Data Storage & API Keys
 
 *   **Offline-First**: By default, no network connection is required. Instructions and specifications are generated using offline smart templates.
-
-
-*   **API Key Storage**: For the optional Gemini AI integration, `writeStoredGeminiKey` encrypts API keys via Electron's `safeStorage` only when `safeStorage.isEncryptionAvailable()` returns true. Otherwise, it stores the key unencrypted as `geminiKeyPlain` in `settings.json` under Electron's user data directory. The file is created with mode `0600` to restrict access to its owner; file permissions do not encrypt its contents. Operations using these keys are executed solely within the isolated Main process.
+*   **API Key Storage**: For the optional Gemini AI integration, `writeStoredGeminiKey` encrypts API keys via Electron's `safeStorage` into `settings.json` (mode `0600`) when `safeStorage.isEncryptionAvailable()` returns `true`. When OS keychain encryption is unavailable, unencrypted disk persistence is rejected with a warning and the API key is kept strictly in process memory for the active session only. Operations using these keys are executed solely within the isolated Main process.
 
 
 ## Reporting a Vulnerability

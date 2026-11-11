@@ -1,6 +1,6 @@
 # SpecForge Studio — Complete AI Agent Project Handoff Bundle
 
-This single file contains the complete source code, Electron main/preload/security layer, React 19 frontend, Vitest test suites, security & contribution policies, build configuration, Ubuntu 24.04 scripts, CI/CD workflows, and vector icon needed for another AI coding agent to understand, audit, modify, test, or reconstruct **SpecForge Studio** (`v1.2.1`).
+This single file contains the complete, untruncated source code, Electron main/preload/security layer, React 19 frontend, Vitest test suites, security & contribution policies, build configuration, Ubuntu 24.04 scripts, CI/CD workflows, and vector icon needed for another AI coding agent to understand, audit, modify, test, or reconstruct **SpecForge Studio** (`v1.2.1`).
 
 ---
 
@@ -16,13 +16,13 @@ This single file contains the complete source code, Electron main/preload/securi
   - **3-Way View Mode Selector**: `Simple` (No-Code 2-step wizard & 3 essential files), `Intermediate` (Pro-Light 4 tabs, Jargon Translation Cards, Plain-English Rule Checkboxes, Simplified `[HITL]`/`[AFK]` Task Slicer, and 6 core files), and `Pro` (All 6 tabs & all 15 generated artifacts).
   - **Field & Section AI Auto-Fill + Soft Amber Review Highlights**: Field-level `✨ Auto-Expand Options` and card-level `✨ Auto-Fill Section` buttons powered by Gemini (`generateGeminiStructured`) with deterministic offline fallback templates and dismissible `Accept All` amber review highlights.
   - **Plain-English Hover Tooltips & Human-Readable Diagnostics**: Context-aware `InfoTooltip` (`ℹ️`) badges across form headings/labels plus plain-language Rule Size, Prompt Length, and Memory Safety status cards.
-  - **Saved Project Presets (`specforge_saved_presets_v1`)**: Header modal (`📂 Saved Projects`) to save, load, delete, and reset named presets in `localStorage` with recursive runtime schema validation (`matchesDefaults`, `isValidSavedPreset`) and keyboard focus trapping.
+  - **Saved Project Presets (`specforge_saved_presets_v1`)**: Header modal (`📂 Saved Projects`) to save, load, delete, and reset named presets in `localStorage` with recursive runtime schema validation (`matchesDefaults`, `isValidSavedPreset`), unsaved-changes confirmation guard, and keyboard focus trapping (`useModalFocusTrap`).
   - **Shareable Full Spec Report (`FULL_BLUEPRINT_REPORT.md`)**: Single-file master Markdown blueprint with 1-click Copy and Export (`.md`) actions in the Artifact Dock header.
   - **Prompt Readiness Scorecard**: Live 6-point readiness checklist in the Artifact Dock header with 1-click `Fix Now` buttons that automatically switch view mode/tabs and focus the target input.
 - **Process & Security Architecture (3-Tier Isolation)**:
-  1. **Main Process (`electron/main.ts`)**: `BrowserWindow` enforces `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`. `setWindowOpenHandler` and `will-navigate` parse URLs via `new URL()` and lock packaged navigation strictly to `DIST_INDEX_URL`. Every `ipcMain.handle` calls `assertTrustedIpcSender(event)` and validates payload types. Filesystem writes use `resolveSafeChildPath` (`electron/pathSecurity.ts`) to reject path traversal, absolute paths, null bytes, and root-equivalent `.`. Gemini API keys are stored via Electron `safeStorage` (or `GEMINI_API_KEY` env var) and Gemini calls run in Main (`ai:generateStructured`).
+  1. **Main Process (`electron/main.ts`)**: `BrowserWindow` enforces `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`. `setWindowOpenHandler` and `will-navigate` parse URLs via `new URL()` and lock packaged navigation strictly to `DIST_INDEX_URL`. Every `ipcMain.handle` calls `assertTrustedIpcSender(event)` and validates payload types. Filesystem writes use `resolveSafeChildPath` (`electron/pathSecurity.ts`) with canonical `fs.realpathSync` / symlink escape & dangling symlink validation while preserving valid POSIX filenames. Gemini API keys use Electron `safeStorage` via atomic exclusive-temp writes (`atomicWriteFileSync`, `mode 0o600`), refusing plaintext disk persistence and falling back to session-only process memory when OS keychain encryption is unavailable; Gemini calls run in Main (`ai:generateStructured`).
   2. **Preload (`electron/preload.ts`)**: Exposes only the narrow `window.desktopAPI` contract defined in `electron/types.ts` via `contextBridge.exposeInMainWorld`.
-  3. **Renderer (`src/SpecForgeStudio.tsx`)**: Strict CSP in `index.html`; `window.desktopAPI` integration with browser fallback.
+  3. **Renderer (`src/SpecForgeStudio.tsx`)**: Strict CSP in `index.html`; `window.desktopAPI` integration with browser fallback, accessible focus trapping across all modals (`useModalFocusTrap`).
 - **Ubuntu 24.04 Specifics**:
   - Ubuntu 24.04 sets `kernel.apparmor_restrict_unprivileged_userns=1`, so unpackaged/AppImage launches require `--no-sandbox` (handled in `electron/main.ts`, `scripts/launch-ubuntu.sh`, `scripts/install-desktop-entry.sh`, and `package.json` `electron:dev`/`electron:start`).
   - `npm run electron:build` passes `--publish never` so CI builds do not fail attempting implicit GitHub publishing without `GH_TOKEN`.
@@ -549,18 +549,12 @@ We adhere to a strict 3-tier Electron isolation model:
 2.  **Narrow Preload Bridge (`electron/preload.ts`)**:
     *   Exposes only specific, typed domain methods via `window.desktopAPI` using `contextBridge`.
 3.  **Path-Traversal Guard (`electron/pathSecurity.ts`)**:
-
-
-    *   `resolveSafeChildPath` validates relative export paths lexically, rejecting paths that resolve outside the selected repository, absolute paths, null bytes, and root-equivalent `.` writes.
-    *   These checks do not resolve symlinks. Writes through symlinks pointing outside the repository can escape it, so strict filesystem confinement is not guaranteed.
-
+    *   `resolveSafeChildPath` validates relative export paths both lexically and canonically (via `fs.realpathSync` / `fs.lstatSync` / `fs.readlinkSync`), rejecting paths that resolve outside the selected repository, absolute paths, null bytes, root-equivalent `.` writes, and symlink escapes (including intermediate directory symlinks and dangling symlinks).
 
 ## Data Storage & API Keys
 
 *   **Offline-First**: By default, no network connection is required. Instructions and specifications are generated using offline smart templates.
-
-
-*   **API Key Storage**: For the optional Gemini AI integration, `writeStoredGeminiKey` encrypts API keys via Electron's `safeStorage` only when `safeStorage.isEncryptionAvailable()` returns true. Otherwise, it stores the key unencrypted as `geminiKeyPlain` in `settings.json` under Electron's user data directory. The file is created with mode `0600` to restrict access to its owner; file permissions do not encrypt its contents. Operations using these keys are executed solely within the isolated Main process.
+*   **API Key Storage**: For the optional Gemini AI integration, `writeStoredGeminiKey` encrypts API keys via Electron's `safeStorage` into `settings.json` (mode `0600`) when `safeStorage.isEncryptionAvailable()` returns `true`. When OS keychain encryption is unavailable, unencrypted disk persistence is rejected with a warning and the API key is kept strictly in process memory for the active session only. Operations using these keys are executed solely within the isolated Main process.
 
 
 ## Reporting a Vulnerability
@@ -781,8 +775,9 @@ export interface DesktopAppInfo {
 
 export interface GeminiSettingsInfo {
   hasKey: boolean;
-  source: 'stored' | 'env' | 'none';
+  source: 'stored' | 'env' | 'memory' | 'none';
   maskedKey?: string;
+  warning?: string;
 }
 
 export interface GeminiStructuredRequest {
@@ -814,11 +809,22 @@ export interface DesktopAPI {
 ### `electron/pathSecurity.ts`
 
 ~~~~~ts
+import * as fs from 'fs';
 import * as path from 'path';
 
 /**
+ * Checks whether `candidate` falls outside `realRoot` (or equals `realRoot` when `allowRoot` is false).
+ */
+function isOutsideRoot(realRoot: string, candidate: string, allowRoot: boolean): boolean {
+  const rel = path.relative(realRoot, candidate);
+  if (!allowRoot && !rel) return true;
+  return rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
+}
+
+/**
  * Validates and resolves a relative artifact path inside a chosen root directory.
- * Rejects empty paths, absolute paths, null bytes, and any `..` traversal outside rootDir.
+ * Rejects empty paths, absolute paths, null bytes, `..` traversal, trailing dots,
+ * and symlink escapes (including dangling symlinks) outside rootDir.
  */
 export function resolveSafeChildPath(rootDir: string, relativePath: string): string {
   if (!relativePath || typeof relativePath !== 'string') {
@@ -833,15 +839,79 @@ export function resolveSafeChildPath(rootDir: string, relativePath: string): str
     throw new Error(`Absolute paths are not permitted: ${relativePath}`);
   }
 
-  const resolvedRoot = path.resolve(rootDir);
-  const resolvedTarget = path.resolve(resolvedRoot, normalizedInput);
-  const rel = path.relative(resolvedRoot, resolvedTarget);
+  // Canonicalize rootDir upfront when it exists on disk; fall back to path.resolve for non-existent roots.
+  let realRoot: string;
+  if (typeof fs.realpathSync === 'function') {
+    try {
+      realRoot = fs.realpathSync(rootDir);
+    } catch (err: any) {
+      if (err && err.code === 'ENOENT') {
+        realRoot = path.resolve(rootDir);
+      } else {
+        throw err;
+      }
+    }
+  } else {
+    realRoot = path.resolve(rootDir);
+  }
 
-  if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+  const segments = normalizedInput.split('/');
+  let currentPath = realRoot;
+
+  for (const segment of segments) {
+    if (segment === '' || segment === '.') continue;
+
+    if (segment === '..') {
+      currentPath = path.dirname(currentPath);
+      if (isOutsideRoot(realRoot, currentPath, true)) {
+        throw new Error(`Path traversal rejected: ${relativePath}`);
+      }
+      continue;
+    }
+
+    if (segment.endsWith('.')) {
+      throw new Error(`Invalid path: trailing dots are not permitted in segment: ${segment}`);
+    }
+
+    // Preserve Windows reserved character restrictions while allowing valid POSIX characters (e.g., ':') on Linux/macOS.
+    if (process.platform === 'win32' && /[<>:"|?*]/.test(segment)) {
+      throw new Error(`Invalid characters in path segment: ${segment}`);
+    }
+
+    currentPath = path.join(currentPath, segment);
+
+    if (typeof fs.realpathSync === 'function') {
+      try {
+        currentPath = fs.realpathSync(currentPath);
+        if (isOutsideRoot(realRoot, currentPath, true)) {
+          throw new Error(`Path traversal detected via symlink: ${relativePath}`);
+        }
+      } catch (err: any) {
+        if (err && err.code === 'ENOENT') {
+          if (typeof fs.lstatSync === 'function') {
+            try {
+              const stat = fs.lstatSync(currentPath);
+              if (stat.isSymbolicLink()) {
+                throw new Error(`Path traversal detected via dangling symlink: ${relativePath}`);
+              }
+            } catch (lstatErr: any) {
+              if (!lstatErr || lstatErr.code !== 'ENOENT') {
+                throw lstatErr;
+              }
+            }
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  if (isOutsideRoot(realRoot, currentPath, false)) {
     throw new Error(`Path traversal rejected: ${relativePath}`);
   }
 
-  return resolvedTarget;
+  return currentPath;
 }
 
 /**
@@ -898,6 +968,7 @@ contextBridge.exposeInMainWorld('desktopAPI', desktopAPI);
 ~~~~~ts
 import { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -976,13 +1047,18 @@ function getSettingsPath(): string {
 
 interface StoredSettings {
   geminiKeyEncrypted?: string;
-  geminiKeyPlain?: string;
 }
 
 /**
- * Reads the configured Gemini API key from OS-encrypted storage or GEMINI_API_KEY env var.
+ * Process-memory-only fallback when OS keychain encryption (safeStorage) is unavailable.
+ * Never persisted to disk in plaintext.
  */
-function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'none' } {
+let inMemoryGeminiKey = '';
+
+/**
+ * Reads the configured Gemini API key from OS-encrypted storage, in-memory session storage, or GEMINI_API_KEY env var.
+ */
+function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'memory' | 'none' } {
   try {
     const settingsPath = getSettingsPath();
     if (fs.existsSync(settingsPath)) {
@@ -991,12 +1067,13 @@ function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'none'
         const decrypted = safeStorage.decryptString(Buffer.from(raw.geminiKeyEncrypted, 'base64'));
         if (decrypted.trim()) return { key: decrypted.trim(), source: 'stored' };
       }
-      if (raw.geminiKeyPlain && raw.geminiKeyPlain.trim()) {
-        return { key: raw.geminiKeyPlain.trim(), source: 'stored' };
-      }
     }
   } catch (err) {
     console.warn('Failed to read stored Gemini key:', err);
+  }
+
+  if (inMemoryGeminiKey) {
+    return { key: inMemoryGeminiKey, source: 'memory' };
   }
 
   const envKey = process.env.GEMINI_API_KEY?.trim() || '';
@@ -1017,16 +1094,45 @@ function maskKey(key: string): string {
 }
 
 /**
+ * Atomically writes a file using an exclusive collision-free temporary file with owner-only permissions.
+ */
+function atomicWriteFileSync(filePath: string, content: string, mode?: number): void {
+  const tempPath = `${filePath}.tmp.${randomUUID()}`;
+  let created = false;
+  try {
+    const fd = fs.openSync(tempPath, 'wx', mode);
+    created = true;
+    try {
+      fs.writeFileSync(fd, content, 'utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    try {
+      if (created) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch {
+      // Preserve the original write failure
+    }
+    throw err;
+  }
+}
+
+/**
  * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
+ * Refuses unencrypted plaintext disk persistence when OS keychain encryption is unavailable,
+ * keeping the key in process memory only for the active session.
  */
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
-  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 
   if (!trimmed) {
+    inMemoryGeminiKey = '';
     if (fs.existsSync(settingsPath)) {
-      fs.writeFileSync(settingsPath, JSON.stringify({}, null, 2), 'utf8');
+      atomicWriteFileSync(settingsPath, '{}', 0o600);
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {
@@ -1036,14 +1142,27 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
     };
   }
 
-  const payload: StoredSettings = {};
-  if (safeStorage.isEncryptionAvailable()) {
-    payload.geminiKeyEncrypted = safeStorage.encryptString(trimmed).toString('base64');
-  } else {
-    payload.geminiKeyPlain = trimmed;
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.warn(
+      'OS keychain encryption (safeStorage) is unavailable. Refusing unencrypted disk persistence for Gemini API key; keeping key in process memory only.'
+    );
+    inMemoryGeminiKey = trimmed;
+    return {
+      hasKey: true,
+      source: 'memory',
+      maskedKey: maskKey(trimmed),
+      warning:
+        'OS keychain encryption is unavailable. API key was NOT written to disk and is kept in process memory for this session only.'
+    };
   }
 
-  fs.writeFileSync(settingsPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
+  inMemoryGeminiKey = '';
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  const payload: StoredSettings = {
+    geminiKeyEncrypted: safeStorage.encryptString(trimmed).toString('base64')
+  };
+
+  atomicWriteFileSync(settingsPath, JSON.stringify(payload, null, 2), 0o600);
   return {
     hasKey: true,
     source: 'stored',
@@ -2469,6 +2588,73 @@ function isValidSavedPreset(
   );
 }
 
+/**
+ * Reusable accessible modal hook: traps Tab focus, closes on Escape,
+ * and restores focus without stealing focus on state re-renders.
+ */
+function useModalFocusTrap(
+  isOpen: boolean,
+  onClose: () => void,
+  dialogRef: React.RefObject<HTMLElement | null>
+) {
+  const onCloseRef = React.useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+
+    if (dialog) {
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        dialog.focus();
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current();
+      } else if (e.key === 'Tab' && dialog) {
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialog) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+    };
+  }, [isOpen, dialogRef]);
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
@@ -2561,58 +2747,12 @@ export default function SpecForgeStudio() {
   >([]);
   const [presetNameInput, setPresetNameInput] = useState('');
   const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+  const cloudDialogRef = React.useRef<HTMLDivElement>(null);
+  const settingsDialogRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!presetsModalOpen) return;
-
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const dialog = presetsDialogRef.current;
-
-    if (dialog) {
-      const focusable = dialog.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length > 0) {
-        focusable[0].focus();
-      } else {
-        dialog.focus();
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setPresetsModalOpen(false);
-      } else if (e.key === 'Tab' && dialog) {
-        const focusable = dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first || document.activeElement === dialog) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      if (previousFocus && typeof previousFocus.focus === 'function') {
-        previousFocus.focus();
-      }
-    };
-  }, [presetsModalOpen]);
+  useModalFocusTrap(presetsModalOpen, () => setPresetsModalOpen(false), presetsDialogRef);
+  useModalFocusTrap(cloudModalOpen, () => setCloudModalOpen(false), cloudDialogRef);
+  useModalFocusTrap(settingsModalOpen, () => setSettingsModalOpen(false), settingsDialogRef);
 
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
@@ -2663,6 +2803,9 @@ export default function SpecForgeStudio() {
     return DEFAULT_FORM;
   });
 
+  // Track initially loaded or saved workspace state for unsaved-changes detection
+  const [baselineState, setBaselineState] = useState({ projectTitle, form });
+
   // AI Loading & Socratic /grill-me Interview State
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [isGrilling, setIsGrilling] = useState(false);
@@ -2711,11 +2854,13 @@ export default function SpecForgeStudio() {
   // ============================================================================
   const handleSavePreset = () => {
     const trimmed = presetNameInput.trim() || projectTitle.trim() || 'Untitled Preset';
+    const snapshotTitle = projectTitle;
+    const snapshotForm = form;
     const newPreset = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: trimmed,
-      projectTitle,
-      formState: form,
+      projectTitle: snapshotTitle,
+      formState: snapshotForm,
       updatedAt: Date.now()
     };
     const next = [newPreset, ...savedPresets];
@@ -2723,6 +2868,7 @@ export default function SpecForgeStudio() {
       localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
       setSavedPresets(next);
       setPresetNameInput('');
+      setBaselineState({ projectTitle: snapshotTitle, form: snapshotForm });
       setStatusMessageWithTimeout({
         type: 'success',
         text: `Saved preset "${trimmed}" to local storage.`
@@ -2742,17 +2888,23 @@ export default function SpecForgeStudio() {
     formState: any;
     updatedAt: number;
   }) => {
-    setProjectTitle(preset.projectTitle || preset.name);
-    setForm((prev: any) => ({
+    if (JSON.stringify({ projectTitle, form }) !== JSON.stringify(baselineState)) {
+      if (!window.confirm('You have unsaved changes in your active draft. Overwrite?')) {
+        return;
+      }
+    }
+    const newProjectTitle = preset.projectTitle || preset.name;
+    const newForm = {
       ...DEFAULT_FORM,
-      ...prev,
       ...preset.formState,
       uiStates: {
         ...DEFAULT_FORM.uiStates,
-        ...(prev.uiStates || {}),
         ...(preset.formState?.uiStates || {})
       }
-    }));
+    };
+    setProjectTitle(newProjectTitle);
+    setForm(newForm);
+    setBaselineState({ projectTitle: newProjectTitle, form: newForm });
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'success',
@@ -2778,15 +2930,23 @@ export default function SpecForgeStudio() {
   };
 
   const handleResetToDefaultPreset = () => {
-    setProjectTitle('My Invoice Approval App');
-    setForm({
+    if (JSON.stringify({ projectTitle, form }) !== JSON.stringify(baselineState)) {
+      if (!window.confirm('You have unsaved changes in your active draft. Overwrite?')) {
+        return;
+      }
+    }
+    const newProjectTitle = 'My Invoice Approval App';
+    const newForm = {
       ...DEFAULT_FORM,
       uiStates: {
         ...DEFAULT_FORM.uiStates
       },
       earsSpecs: [...DEFAULT_FORM.earsSpecs],
       verticalSlices: [...DEFAULT_FORM.verticalSlices]
-    });
+    };
+    setProjectTitle(newProjectTitle);
+    setForm(newForm);
+    setBaselineState({ projectTitle: newProjectTitle, form: newForm });
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'info',
@@ -2821,12 +2981,21 @@ export default function SpecForgeStudio() {
       setGeminiSettings(next);
       setGeminiKeyInput('');
       setSettingsModalOpen(false);
-      setStatusMessage({
-        type: 'success',
-        text: clearKey
-          ? 'Cleared stored Gemini API key.'
-          : 'Saved Gemini API key securely on this Ubuntu desktop! AI Auto-Architect and /grill-me are ready.'
-      });
+      if (!clearKey && (next.warning || next.source === 'memory')) {
+        setStatusMessage({
+          type: 'warning',
+          text:
+            next.warning ||
+            'OS keychain encryption is unavailable; Gemini API key is kept in process memory only for this session.'
+        });
+      } else {
+        setStatusMessage({
+          type: 'success',
+          text: clearKey
+            ? 'Cleared stored Gemini API key.'
+            : 'Saved Gemini API key securely on this Ubuntu desktop! AI Auto-Architect and /grill-me are ready.'
+        });
+      }
     } catch (err: any) {
       setStatusMessage({
         type: 'error',
@@ -2840,18 +3009,20 @@ export default function SpecForgeStudio() {
   // Save current project locally on Ubuntu desktop (with optional Tag for filtering/sharing)
   const handleSaveToCloud = async (withTag = false) => {
     setIsSavingCloud(true);
+    const savedTitleSnapshot = projectTitle;
+    const savedFormSnapshot = form;
     try {
       const cleanId =
-        projectTitle
+        savedTitleSnapshot
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '') || 'blueprint';
 
       const payload = {
         id: cleanId,
-        title: projectTitle || 'Untitled Blueprint',
+        title: savedTitleSnapshot || 'Untitled Blueprint',
         tag: withTag ? blueprintTag.trim().toLowerCase() : '',
-        formState: JSON.stringify(form)
+        formState: JSON.stringify(savedFormSnapshot)
       };
 
       if (window.desktopAPI) {
@@ -2867,12 +3038,13 @@ export default function SpecForgeStudio() {
         localStorage.setItem(LOCAL_BLUEPRINTS_STORAGE_KEY, JSON.stringify(next));
       }
 
+      setBaselineState({ projectTitle: savedTitleSnapshot, form: savedFormSnapshot });
       await refreshBlueprints();
       setStatusMessage({
         type: 'success',
         text: withTag
-          ? `Saved "${projectTitle}" locally with tag "#${blueprintTag || 'untagged'}". You can also export it as a .specforge.json file!`
-          : `Saved "${projectTitle}" to your Ubuntu desktop workspace!`
+          ? `Saved "${savedTitleSnapshot}" locally with tag "#${blueprintTag || 'untagged'}". You can also export it as a .specforge.json file!`
+          : `Saved "${savedTitleSnapshot}" to your Ubuntu desktop workspace!`
       });
     } catch (err: any) {
       setStatusMessage({
@@ -2887,8 +3059,18 @@ export default function SpecForgeStudio() {
   const handleLoadFromCloud = (item: SavedBlueprint) => {
     try {
       const parsed = JSON.parse(item.formState);
-      setForm((prev) => ({ ...prev, ...parsed }));
-      setProjectTitle(item.title || 'Loaded Project');
+      const loadedTitle = item.title || 'Loaded Project';
+      const loadedForm = {
+        ...DEFAULT_FORM,
+        ...parsed,
+        uiStates: {
+          ...DEFAULT_FORM.uiStates,
+          ...(parsed?.uiStates || {})
+        }
+      };
+      setForm(loadedForm);
+      setProjectTitle(loadedTitle);
+      setBaselineState({ projectTitle: loadedTitle, form: loadedForm });
       if (item.tag) setBlueprintTag(item.tag);
       setCloudModalOpen(false);
       setStatusMessage({
@@ -3885,7 +4067,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
 ## 📋 1. Project Overview & Target Stack
 - **Project Title**: ${projectTitle || 'Untitled Blueprint'}
-- **Target Surface**: \`${form.surface}\`
+- **Target Surface**: \`${form.platform}\`
 - **Target AI Agent**: \`${form.agent}\`
 - **Role Persona**: ${form.rolePersona} (${form.roleFocus})
 - **Pinned Stack**: ${form.pinnedStack}
@@ -4690,13 +4872,25 @@ ${slicesFormatted}
           LOCAL BLUEPRINTS & JSON IMPORT/EXPORT MODAL
          ==================================================================== */}
       {cloudModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setCloudModalOpen(false);
+          }}
+        >
+          <div
+            ref={cloudDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cloud-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <HardDrive className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="cloud-dialog-title" className="text-base font-bold text-white">
                     Local Desktop Blueprints &amp; Portable Backups
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -4888,13 +5082,25 @@ ${slicesFormatted}
           DESKTOP AI SETTINGS MODAL (GEMINI API KEY)
          ==================================================================== */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSettingsModalOpen(false);
+          }}
+        >
+          <div
+            ref={settingsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <KeyRound className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="settings-dialog-title" className="text-base font-bold text-white">
                     Desktop AI Settings (Optional)
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -4952,7 +5158,7 @@ ${slicesFormatted}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
-              {geminiSettings.source === 'stored' && (
+              {(geminiSettings.source === 'stored' || geminiSettings.source === 'memory') && (
                 <button
                   onClick={() => handleSaveGeminiKey(true)}
                   disabled={isSavingSettings}
@@ -4979,7 +5185,7 @@ ${slicesFormatted}
       {presetsModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={(e) => {
+          onMouseDown={(e) => {
             if (e.target === e.currentTarget) setPresetsModalOpen(false);
           }}
         >
@@ -7917,9 +8123,16 @@ ${slicesFormatted}
 ### `src/__tests__/pathSecurity.test.ts`
 
 ~~~~~ts
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, vi } from 'vitest';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { resolveSafeChildPath, sanitizeBlueprintId } from '../../electron/pathSecurity';
+
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+  return { ...actual, lstatSync: vi.fn(actual.lstatSync) };
+});
 
 describe('resolveSafeChildPath', () => {
   const root = '/home/sinnoh/projects/demo-repo';
@@ -7955,6 +8168,95 @@ describe('resolveSafeChildPath', () => {
     expect(() => resolveSafeChildPath(root, 'foo\0bar.md')).toThrow(/null byte/);
     expect(() => resolveSafeChildPath(root, '')).toThrow(/empty/);
   });
+
+  it('rejects trailing dots in path segments', () => {
+    expect(() => resolveSafeChildPath(root, 'folder./AGENTS.md')).toThrow(/trailing dots/);
+  });
+
+  if (process.platform !== 'win32') {
+    it('allows valid POSIX filenames containing colons on non-Windows platforms', () => {
+      expect(resolveSafeChildPath(root, '.agents/rules/notes: overview.md')).toBe(
+        path.join(root, '.agents', 'rules', 'notes: overview.md')
+      );
+    });
+  }
+});
+
+describe('resolveSafeChildPath symlink handling', () => {
+  let tmpDir: string;
+  let realRoot: string;
+  let symRoot: string;
+  let outsideDir: string;
+
+  beforeAll(() => {
+    tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pathSecurity-')));
+    realRoot = path.join(tmpDir, 'real-root');
+    symRoot = path.join(tmpDir, 'sym-root');
+    outsideDir = path.join(tmpDir, 'outside');
+
+    fs.mkdirSync(realRoot);
+    fs.mkdirSync(outsideDir);
+    fs.symlinkSync(realRoot, symRoot);
+
+    const innerDir = path.join(realRoot, 'inner');
+    fs.mkdirSync(innerDir);
+    fs.symlinkSync(outsideDir, path.join(innerDir, 'escape'));
+    fs.writeFileSync(path.join(outsideDir, 'secret.txt'), 'secret', 'utf8');
+    fs.symlinkSync(path.join(outsideDir, 'secret.txt'), path.join(realRoot, 'direct-escape.txt'));
+    fs.symlinkSync(realRoot, path.join(realRoot, 'self-link'));
+  });
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('handles root directory that is itself a symlink to another directory', () => {
+    const result = resolveSafeChildPath(symRoot, 'inner/file.txt');
+    expect(result).toBe(path.join(realRoot, 'inner', 'file.txt'));
+  });
+
+  it('rejects deeply nested relative paths where subdirectories or files are symlinks escaping out', () => {
+    expect(() => resolveSafeChildPath(symRoot, 'inner/escape/secret.txt')).toThrow(/Path traversal/);
+    expect(() => resolveSafeChildPath(symRoot, 'direct-escape.txt')).toThrow(/Path traversal/);
+    expect(() => resolveSafeChildPath(symRoot, 'self-link')).toThrow(/Path traversal/);
+  });
+
+  it('normalizes windows style backslashes', () => {
+    const result = resolveSafeChildPath(symRoot, 'inner\\file.txt');
+    expect(result).toBe(path.join(realRoot, 'inner', 'file.txt'));
+  });
+
+  it.each(['inside', 'outside'])('rejects dangling symlinks targeting missing paths %s root', (target) => {
+    const linkName = `dangling-${target}`;
+    const targetDir = target === 'inside' ? realRoot : outsideDir;
+    fs.symlinkSync(path.join(targetDir, 'missing'), path.join(realRoot, linkName));
+
+    expect(() => resolveSafeChildPath(symRoot, linkName)).toThrow(/dangling symlink/);
+    expect(() => resolveSafeChildPath(symRoot, `${linkName}/file.txt`)).toThrow(/dangling symlink/);
+  });
+
+  it('preserves the fallback for genuinely nonexistent nested paths', () => {
+    expect(resolveSafeChildPath(symRoot, 'missing/nested/file.txt')).toBe(
+      path.join(realRoot, 'missing', 'nested', 'file.txt')
+    );
+  });
+
+  it('allows existing symlinks whose targets remain inside root', () => {
+    fs.symlinkSync(path.join(realRoot, 'inner'), path.join(realRoot, 'safe-link'));
+    expect(resolveSafeChildPath(symRoot, 'safe-link/file.txt')).toBe(path.join(realRoot, 'inner', 'file.txt'));
+  });
+
+  it('propagates unexpected lstat errors', () => {
+    const error = Object.assign(new Error('Permission denied'), { code: 'EACCES' });
+    const stat = vi.mocked(fs.lstatSync).mockImplementationOnce(() => {
+      throw error;
+    });
+    try {
+      expect(() => resolveSafeChildPath(symRoot, 'missing/file.txt')).toThrow(error);
+    } finally {
+      stat.mockReset();
+    }
+  });
 });
 
 describe('sanitizeBlueprintId', () => {
@@ -7979,7 +8281,7 @@ describe('sanitizeBlueprintId', () => {
 ### `src/__tests__/electronMainSecurity.test.ts`
 
 ~~~~~ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('electron', () => {
   const ipcHandlers = new Map<string, Function>();
@@ -8021,6 +8323,14 @@ vi.mock('electron', () => {
     BrowserWindow,
     shell: {
       openExternal: vi.fn()
+    },
+    safeStorage: {
+      isEncryptionAvailable: vi.fn().mockReturnValue(true),
+      encryptString: vi.fn((text: string) => Buffer.from(`enc:${text}`, 'utf8')),
+      decryptString: vi.fn((buf: Buffer) => {
+        const s = buf.toString('utf8');
+        return s.startsWith('enc:') ? s.slice(4) : s;
+      })
     }
   };
 });
@@ -8030,10 +8340,16 @@ vi.mock('fs', () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   writeFileSync: vi.fn(),
+  openSync: vi.fn(),
+  closeSync: vi.fn(),
+  renameSync: vi.fn(),
   readFileSync: vi.fn(),
   chmodSync: vi.fn(),
   readdirSync: vi.fn(),
-  unlinkSync: vi.fn()
+  unlinkSync: vi.fn(),
+  realpathSync: vi.fn((p: string) => p),
+  lstatSync: vi.fn(),
+  readlinkSync: vi.fn()
 }));
 
 // Mock os
@@ -8046,13 +8362,16 @@ vi.mock('os', () => ({
 process.env.VITE_DEV_SERVER_URL = 'http://localhost:5173';
 process.env.NODE_ENV = 'development';
 
+import * as fs from 'fs';
+import * as path from 'path';
 import '../../electron/main';
 import { resolveSafeChildPath } from '../../electron/pathSecurity';
-import { ipcMain } from 'electron';
+import { app, ipcMain, safeStorage } from 'electron';
 
 describe('Electron Main Security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (safeStorage.isEncryptionAvailable as any).mockReturnValue(true);
   });
 
   const mockEvent = {
@@ -8093,12 +8412,112 @@ describe('Electron Main Security', () => {
       const nullPayloadResult = await handler(mockEvent, null);
       expect(nullPayloadResult).toEqual({ canceled: true, error: 'No artifact files provided' });
 
-      const malformedPayloadResult = await handler(mockEvent, { files: "not an array" });
+      const malformedPayloadResult = await handler(mockEvent, { files: 'not an array' });
       expect(malformedPayloadResult).toEqual({ canceled: true, error: 'No artifact files provided' });
     });
   });
 
-  describe('settings:setGeminiKey handler', () => {
+  describe('settings atomic file writes', () => {
+    let realFs: typeof import('fs');
+    let realOs: typeof import('os');
+    let directory: string;
+    let settingsPath: string;
+    const save = (key: string) => (ipcMain as any)._getHandlers().get('settings:setGeminiKey')(mockEvent, key);
+
+    beforeEach(async () => {
+      realFs = await vi.importActual<typeof import('fs')>('fs');
+      realOs = await vi.importActual<typeof import('os')>('os');
+      directory = realFs.mkdtempSync(path.join(realOs.tmpdir(), 'specforge-settings-'));
+      settingsPath = path.join(directory, 'settings.json');
+      vi.mocked(app.getPath).mockReturnValue(directory);
+      (safeStorage.isEncryptionAvailable as any).mockReturnValue(true);
+      (safeStorage.encryptString as any).mockImplementation((text: string) => Buffer.from(`enc:${text}`, 'utf8'));
+      for (const name of [
+        'existsSync',
+        'mkdirSync',
+        'openSync',
+        'closeSync',
+        'writeFileSync',
+        'renameSync',
+        'unlinkSync'
+      ] as const) {
+        vi.mocked(fs[name]).mockImplementation(realFs[name] as any);
+      }
+    });
+
+    afterEach(() => {
+      vi.mocked(app.getPath).mockReturnValue('/mock/app/path');
+      realFs.rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('uses distinct temporary paths even when the clock is fixed and stores encrypted key only', () => {
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(1234);
+      try {
+        save('first-key');
+        save('second-key');
+        const paths = vi.mocked(fs.openSync).mock.calls.map(([file]) => file);
+        expect(new Set(paths).size).toBe(2);
+        expect(fs.openSync).toHaveBeenCalledWith(expect.any(String), 'wx', 0o600);
+        const written = JSON.parse(realFs.readFileSync(settingsPath, 'utf8'));
+        expect(written).toEqual({
+          geminiKeyEncrypted: Buffer.from('enc:second-key', 'utf8').toString('base64')
+        });
+        expect(written.geminiKeyPlain).toBeUndefined();
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it('preserves an existing temporary file when exclusive creation fails', () => {
+      let collisionPath = '';
+      vi.mocked(fs.openSync).mockImplementationOnce((file, flags, mode) => {
+        collisionPath = String(file);
+        realFs.writeFileSync(file, 'other writer');
+        return realFs.openSync(file, flags, mode);
+      });
+      realFs.writeFileSync(settingsPath, 'original settings');
+      expect(() => save('new-key')).toThrow();
+      expect(realFs.readFileSync(collisionPath, 'utf8')).toBe('other writer');
+      expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('original settings');
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it.each(['writeFileSync', 'renameSync'] as const)(
+      'cleans up its own file after %s fails',
+      (operation) => {
+        realFs.writeFileSync(settingsPath, 'original settings');
+        vi.mocked(fs[operation]).mockImplementationOnce(() => {
+          throw new Error('injected failure');
+        });
+        expect(() => save('new-key')).toThrow('injected failure');
+        expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('original settings');
+        expect(realFs.readdirSync(directory)).toEqual(['settings.json']);
+        expect(fs.closeSync).toHaveBeenCalledTimes(1);
+        expect(fs.unlinkSync).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    if (process.platform !== 'win32') {
+      it('clears settings with private permissions before atomic replacement under a permissive umask', () => {
+        realFs.writeFileSync(settingsPath, 'original settings', { mode: 0o644 });
+        const previousUmask = process.umask(0);
+        vi.mocked(fs.renameSync).mockImplementationOnce((source, destination) => {
+          expect(realFs.statSync(source).mode & 0o777).toBe(0o600);
+          expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('original settings');
+          realFs.renameSync(source, destination);
+        });
+        try {
+          save('');
+          expect(realFs.readFileSync(settingsPath, 'utf8')).toBe('{}');
+          expect(realFs.statSync(settingsPath).mode & 0o777).toBe(0o600);
+        } finally {
+          process.umask(previousUmask);
+        }
+      });
+    }
+  });
+
+  describe('settings:setGeminiKey and settings:getGeminiKey handlers', () => {
     it('should handle malformed payloads safely', async () => {
       const handlers = (ipcMain as any)._getHandlers();
       const handler = handlers.get('settings:setGeminiKey');
@@ -8107,6 +8526,53 @@ describe('Electron Main Security', () => {
       await expect(() => handler(mockEvent, null)).toThrow('API key must be a string');
       await expect(() => handler(mockEvent, 123)).toThrow('API key must be a string');
       await expect(() => handler(mockEvent, {})).toThrow('API key must be a string');
+    });
+
+    it('refuses unencrypted plaintext disk persistence when safeStorage encryption is unavailable and keeps key in memory only', async () => {
+      const prevEnvKey = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      try {
+        const handlers = (ipcMain as any)._getHandlers();
+        const setHandler = handlers.get('settings:setGeminiKey');
+        const getHandler = handlers.get('settings:getGeminiKey');
+
+        (safeStorage.isEncryptionAvailable as any).mockReturnValue(false);
+        (fs.existsSync as any).mockReturnValue(false);
+
+        const result = await setHandler(mockEvent, 'AIzaSySecretKey1234');
+        expect(result.hasKey).toBe(true);
+        expect(result.source).toBe('memory');
+        expect(result.maskedKey).toBe('AIza••••1234');
+        expect(result.warning).toMatch(/OS keychain encryption is unavailable/i);
+
+        // Must NOT write any plaintext API key to settings.json
+        expect(fs.openSync).not.toHaveBeenCalled();
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalled();
+
+        // Reading key within the same process returns the in-memory session key
+        const current = await getHandler(mockEvent);
+        expect(current).toEqual({
+          hasKey: true,
+          source: 'memory',
+          maskedKey: 'AIza••••1234'
+        });
+
+        // Clearing resets in-memory key cleanly
+        const cleared = await setHandler(mockEvent, '');
+        expect(cleared).toEqual({
+          hasKey: false,
+          source: 'none',
+          maskedKey: undefined
+        });
+      } finally {
+        if (prevEnvKey !== undefined) {
+          process.env.GEMINI_API_KEY = prevEnvKey;
+        }
+        warnSpy.mockRestore();
+      }
     });
   });
 });
@@ -8245,6 +8711,90 @@ describe('Accessibility Contracts', () => {
     expect(personaInput.id).toBe('user-persona-input');
     expect(personaInput.tagName.toLowerCase()).toBe('input');
   });
+
+  it('verifies Blueprints modal traps focus, applies ARIA semantics, and closes on Escape', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const openButton = screen.getByRole('button', { name: /Blueprints \(/i });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    const dialog = screen.getByRole('dialog', { name: /Local Desktop Blueprints/i });
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Local Desktop Blueprints/i })).toBeNull();
+    });
+
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it('verifies AI Settings modal traps focus, applies ARIA semantics, and closes on Escape', async () => {
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const openButton = screen.getByRole('button', { name: /AI Key/i });
+    openButton.focus();
+    fireEvent.click(openButton);
+
+    const dialog = screen.getByRole('dialog', { name: /Desktop AI Settings/i });
+    expect(dialog).not.toBeNull();
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Desktop AI Settings/i })).toBeNull();
+    });
+
+    expect(document.activeElement).toBe(openButton);
+  });
+
+  it.each([
+    [/Blueprints \(/i, /Local Desktop Blueprints/i, 'e.g., work-2026'],
+    [/AI Key/i, /Desktop AI Settings/i, 'AIza...']
+  ])(
+    'keeps focus during edits and dismisses only on direct backdrop press (%s)',
+    async (buttonName, dialogName, placeholder) => {
+      render(<SpecForgeStudio />);
+      await waitFor(() => expect(mockApi.listBlueprints).toHaveBeenCalled());
+
+      const openButton = screen.getByRole('button', { name: buttonName });
+      openButton.focus();
+      fireEvent.click(openButton);
+      const dialog = screen.getByRole('dialog', { name: dialogName });
+      const input = within(dialog).getByPlaceholderText(placeholder);
+      input.focus();
+      fireEvent.change(input, { target: { value: 'test edit' } });
+      expect(document.activeElement).toBe(input);
+
+      // A press inside followed by a release/click on the backdrop must stay open.
+      const backdrop = dialog.parentElement!;
+      fireEvent.mouseDown(input);
+      fireEvent.mouseUp(backdrop);
+      fireEvent.click(backdrop);
+      expect(screen.getByRole('dialog', { name: dialogName })).toBe(dialog);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('dialog', { name: dialogName })).toBeNull();
+      expect(document.activeElement).toBe(openButton);
+
+      fireEvent.click(openButton);
+      fireEvent.mouseDown(screen.getByRole('dialog', { name: dialogName }).parentElement!);
+      expect(screen.queryByRole('dialog', { name: dialogName })).toBeNull();
+      expect(document.activeElement).toBe(openButton);
+    }
+  );
 });
 ~~~~~
 
@@ -8829,6 +9379,46 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(screen.getByText(/No project presets saved yet/i)).toBeTruthy();
   });
 
+
+  it('handles duplicate preset names and invalid JSON in localStorage gracefully', async () => {
+    // 1. Invalid JSON
+    localStorage.setItem('specforge_saved_presets_v1', '{ invalid json');
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    // Should still open with 0 saved presets since invalid JSON is caught
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    expect(savedProjectsBtn).toBeTruthy();
+
+    // 2. Duplicate preset names
+    fireEvent.click(savedProjectsBtn);
+
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'Duplicate Name' } });
+
+    const savePresetBtn = screen.getByRole('button', { name: /Save Current as Preset/i });
+    fireEvent.click(savePresetBtn);
+
+    // The previous click saves the preset, but also clears the input field.
+    // So we need to type 'Duplicate Name' again
+    fireEvent.change(presetNameInput, { target: { value: 'Duplicate Name' } });
+
+    // Save another one with the same name
+    fireEvent.click(savePresetBtn);
+
+    const rawSaved = localStorage.getItem('specforge_saved_presets_v1');
+    expect(rawSaved).toBeTruthy();
+    const parsedSaved = JSON.parse(rawSaved!);
+
+    expect(parsedSaved).toHaveLength(2);
+    expect(parsedSaved[0].name).toBe('Duplicate Name');
+    expect(parsedSaved[1].name).toBe('Duplicate Name');
+    expect(parsedSaved[0].id).not.toBe(parsedSaved[1].id);
+  });
+
   it('rejects malformed saved presets with invalid array item schemas on startup', async () => {
     localStorage.setItem(
       'specforge_saved_presets_v1',
@@ -8878,6 +9468,8 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(typeof copiedMarkdown).toBe('string');
     expect(copiedMarkdown).toContain('Full Architectural & SDD Specification Report');
     expect(copiedMarkdown).toContain('## 📋 1. Project Overview & Target Stack');
+    expect(copiedMarkdown).toContain('- **Target Surface**: `web`');
+    expect(copiedMarkdown).not.toContain('Target Surface**: `undefined`');
     expect(copiedMarkdown).toContain('## 🎯 2. 5-Section Task Prompt (`TASK_PROMPT.md`)');
     expect(copiedMarkdown).toContain('## 🤖 3. Repository Agent Contract (`AGENTS.md`)');
     expect(copiedMarkdown).toContain(
@@ -8937,6 +9529,55 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(focusedEl).toBeTruthy();
       expect(document.activeElement).toBe(focusedEl);
     });
+  });
+
+  it('displays a confirmation prompt when resetting or loading a preset with unsaved changes', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const ideaTextarea = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Draft with unsaved changes' }
+    });
+
+    // Try Resetting (Cancel the confirm)
+    confirmSpy.mockReturnValueOnce(false);
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    fireEvent.click(savedProjectsBtn);
+    const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
+    fireEvent.click(resetBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes in your active draft. Overwrite?');
+    expect(ideaTextarea.value).toBe('Draft with unsaved changes');
+
+    // Save preset so we can test Load guard
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'My Unsaved Draft Preset' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save Current as Preset/i }));
+
+    // Edit again so draft diverges from saved baseline
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Even more unsaved changes' }
+    });
+
+    // Try Loading (Cancel)
+    confirmSpy.mockReturnValueOnce(false);
+    const loadPresetBtn = screen.getByRole('button', { name: /Load preset My Unsaved Draft Preset/i });
+    fireEvent.click(loadPresetBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes in your active draft. Overwrite?');
+    expect(ideaTextarea.value).toBe('Even more unsaved changes');
+
+    // Try Loading (Confirm)
+    confirmSpy.mockReturnValueOnce(true);
+    fireEvent.click(loadPresetBtn);
+    expect(ideaTextarea.value).toBe('Draft with unsaved changes');
+
+    confirmSpy.mockRestore();
   });
 });
 ~~~~~

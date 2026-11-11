@@ -45,8 +45,9 @@ export interface DesktopAppInfo {
 
 export interface GeminiSettingsInfo {
   hasKey: boolean;
-  source: 'stored' | 'env' | 'none';
+  source: 'stored' | 'env' | 'memory' | 'none';
   maskedKey?: string;
+  warning?: string;
 }
 
 export interface GeminiStructuredRequest {

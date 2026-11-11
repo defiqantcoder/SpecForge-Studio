@@ -918,6 +918,73 @@ function isValidSavedPreset(
   );
 }
 
+/**
+ * Reusable accessible modal hook: traps Tab focus, closes on Escape,
+ * and restores focus without stealing focus on state re-renders.
+ */
+function useModalFocusTrap(
+  isOpen: boolean,
+  onClose: () => void,
+  dialogRef: React.RefObject<HTMLElement | null>
+) {
+  const onCloseRef = React.useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+
+    if (dialog) {
+      const focusable = dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length > 0) {
+        focusable[0].focus();
+      } else {
+        dialog.focus();
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current();
+      } else if (e.key === 'Tab' && dialog) {
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialog) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') {
+        previousFocus.focus();
+      }
+    };
+  }, [isOpen, dialogRef]);
+}
+
 export default function SpecForgeStudio() {
   // Active workspace tab ('ideation' first in Simple Mode)
   const [activeTab, setActiveTab] = useState('ideation');
@@ -1010,58 +1077,12 @@ export default function SpecForgeStudio() {
   >([]);
   const [presetNameInput, setPresetNameInput] = useState('');
   const presetsDialogRef = React.useRef<HTMLDivElement>(null);
+  const cloudDialogRef = React.useRef<HTMLDivElement>(null);
+  const settingsDialogRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!presetsModalOpen) return;
-
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const dialog = presetsDialogRef.current;
-
-    if (dialog) {
-      const focusable = dialog.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length > 0) {
-        focusable[0].focus();
-      } else {
-        dialog.focus();
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setPresetsModalOpen(false);
-      } else if (e.key === 'Tab' && dialog) {
-        const focusable = dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first || document.activeElement === dialog) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      if (previousFocus && typeof previousFocus.focus === 'function') {
-        previousFocus.focus();
-      }
-    };
-  }, [presetsModalOpen]);
+  useModalFocusTrap(presetsModalOpen, () => setPresetsModalOpen(false), presetsDialogRef);
+  useModalFocusTrap(cloudModalOpen, () => setCloudModalOpen(false), cloudDialogRef);
+  useModalFocusTrap(settingsModalOpen, () => setSettingsModalOpen(false), settingsDialogRef);
 
   const [geminiSettings, setGeminiSettings] = useState<GeminiSettingsInfo>({
     hasKey: false,
@@ -1112,6 +1133,9 @@ export default function SpecForgeStudio() {
     return DEFAULT_FORM;
   });
 
+  // Track initially loaded or saved workspace state for unsaved-changes detection
+  const [baselineState, setBaselineState] = useState({ projectTitle, form });
+
   // AI Loading & Socratic /grill-me Interview State
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [isGrilling, setIsGrilling] = useState(false);
@@ -1160,11 +1184,13 @@ export default function SpecForgeStudio() {
   // ============================================================================
   const handleSavePreset = () => {
     const trimmed = presetNameInput.trim() || projectTitle.trim() || 'Untitled Preset';
+    const snapshotTitle = projectTitle;
+    const snapshotForm = form;
     const newPreset = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: trimmed,
-      projectTitle,
-      formState: form,
+      projectTitle: snapshotTitle,
+      formState: snapshotForm,
       updatedAt: Date.now()
     };
     const next = [newPreset, ...savedPresets];
@@ -1172,6 +1198,7 @@ export default function SpecForgeStudio() {
       localStorage.setItem(LOCAL_PRESETS_STORAGE_KEY, JSON.stringify(next));
       setSavedPresets(next);
       setPresetNameInput('');
+      setBaselineState({ projectTitle: snapshotTitle, form: snapshotForm });
       setStatusMessageWithTimeout({
         type: 'success',
         text: `Saved preset "${trimmed}" to local storage.`
@@ -1191,17 +1218,23 @@ export default function SpecForgeStudio() {
     formState: any;
     updatedAt: number;
   }) => {
-    setProjectTitle(preset.projectTitle || preset.name);
-    setForm((prev: any) => ({
+    if (JSON.stringify({ projectTitle, form }) !== JSON.stringify(baselineState)) {
+      if (!window.confirm('You have unsaved changes in your active draft. Overwrite?')) {
+        return;
+      }
+    }
+    const newProjectTitle = preset.projectTitle || preset.name;
+    const newForm = {
       ...DEFAULT_FORM,
-      ...prev,
       ...preset.formState,
       uiStates: {
         ...DEFAULT_FORM.uiStates,
-        ...(prev.uiStates || {}),
         ...(preset.formState?.uiStates || {})
       }
-    }));
+    };
+    setProjectTitle(newProjectTitle);
+    setForm(newForm);
+    setBaselineState({ projectTitle: newProjectTitle, form: newForm });
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'success',
@@ -1227,15 +1260,23 @@ export default function SpecForgeStudio() {
   };
 
   const handleResetToDefaultPreset = () => {
-    setProjectTitle('My Invoice Approval App');
-    setForm({
+    if (JSON.stringify({ projectTitle, form }) !== JSON.stringify(baselineState)) {
+      if (!window.confirm('You have unsaved changes in your active draft. Overwrite?')) {
+        return;
+      }
+    }
+    const newProjectTitle = 'My Invoice Approval App';
+    const newForm = {
       ...DEFAULT_FORM,
       uiStates: {
         ...DEFAULT_FORM.uiStates
       },
       earsSpecs: [...DEFAULT_FORM.earsSpecs],
       verticalSlices: [...DEFAULT_FORM.verticalSlices]
-    });
+    };
+    setProjectTitle(newProjectTitle);
+    setForm(newForm);
+    setBaselineState({ projectTitle: newProjectTitle, form: newForm });
     setPresetsModalOpen(false);
     setStatusMessageWithTimeout({
       type: 'info',
@@ -1270,12 +1311,21 @@ export default function SpecForgeStudio() {
       setGeminiSettings(next);
       setGeminiKeyInput('');
       setSettingsModalOpen(false);
-      setStatusMessage({
-        type: 'success',
-        text: clearKey
-          ? 'Cleared stored Gemini API key.'
-          : 'Saved Gemini API key securely on this Ubuntu desktop! AI Auto-Architect and /grill-me are ready.'
-      });
+      if (!clearKey && (next.warning || next.source === 'memory')) {
+        setStatusMessage({
+          type: 'warning',
+          text:
+            next.warning ||
+            'OS keychain encryption is unavailable; Gemini API key is kept in process memory only for this session.'
+        });
+      } else {
+        setStatusMessage({
+          type: 'success',
+          text: clearKey
+            ? 'Cleared stored Gemini API key.'
+            : 'Saved Gemini API key securely on this Ubuntu desktop! AI Auto-Architect and /grill-me are ready.'
+        });
+      }
     } catch (err: any) {
       setStatusMessage({
         type: 'error',
@@ -1289,18 +1339,20 @@ export default function SpecForgeStudio() {
   // Save current project locally on Ubuntu desktop (with optional Tag for filtering/sharing)
   const handleSaveToCloud = async (withTag = false) => {
     setIsSavingCloud(true);
+    const savedTitleSnapshot = projectTitle;
+    const savedFormSnapshot = form;
     try {
       const cleanId =
-        projectTitle
+        savedTitleSnapshot
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '') || 'blueprint';
 
       const payload = {
         id: cleanId,
-        title: projectTitle || 'Untitled Blueprint',
+        title: savedTitleSnapshot || 'Untitled Blueprint',
         tag: withTag ? blueprintTag.trim().toLowerCase() : '',
-        formState: JSON.stringify(form)
+        formState: JSON.stringify(savedFormSnapshot)
       };
 
       if (window.desktopAPI) {
@@ -1316,12 +1368,13 @@ export default function SpecForgeStudio() {
         localStorage.setItem(LOCAL_BLUEPRINTS_STORAGE_KEY, JSON.stringify(next));
       }
 
+      setBaselineState({ projectTitle: savedTitleSnapshot, form: savedFormSnapshot });
       await refreshBlueprints();
       setStatusMessage({
         type: 'success',
         text: withTag
-          ? `Saved "${projectTitle}" locally with tag "#${blueprintTag || 'untagged'}". You can also export it as a .specforge.json file!`
-          : `Saved "${projectTitle}" to your Ubuntu desktop workspace!`
+          ? `Saved "${savedTitleSnapshot}" locally with tag "#${blueprintTag || 'untagged'}". You can also export it as a .specforge.json file!`
+          : `Saved "${savedTitleSnapshot}" to your Ubuntu desktop workspace!`
       });
     } catch (err: any) {
       setStatusMessage({
@@ -1336,8 +1389,18 @@ export default function SpecForgeStudio() {
   const handleLoadFromCloud = (item: SavedBlueprint) => {
     try {
       const parsed = JSON.parse(item.formState);
-      setForm((prev) => ({ ...prev, ...parsed }));
-      setProjectTitle(item.title || 'Loaded Project');
+      const loadedTitle = item.title || 'Loaded Project';
+      const loadedForm = {
+        ...DEFAULT_FORM,
+        ...parsed,
+        uiStates: {
+          ...DEFAULT_FORM.uiStates,
+          ...(parsed?.uiStates || {})
+        }
+      };
+      setForm(loadedForm);
+      setProjectTitle(loadedTitle);
+      setBaselineState({ projectTitle: loadedTitle, form: loadedForm });
       if (item.tag) setBlueprintTag(item.tag);
       setCloudModalOpen(false);
       setStatusMessage({
@@ -2334,7 +2397,7 @@ echo "   /plan /grill-me Implement the vertical slice in @TASK_PROMPT.md"
 
 ## 📋 1. Project Overview & Target Stack
 - **Project Title**: ${projectTitle || 'Untitled Blueprint'}
-- **Target Surface**: \`${form.surface}\`
+- **Target Surface**: \`${form.platform}\`
 - **Target AI Agent**: \`${form.agent}\`
 - **Role Persona**: ${form.rolePersona} (${form.roleFocus})
 - **Pinned Stack**: ${form.pinnedStack}
@@ -3139,13 +3202,25 @@ ${slicesFormatted}
           LOCAL BLUEPRINTS & JSON IMPORT/EXPORT MODAL
          ==================================================================== */}
       {cloudModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setCloudModalOpen(false);
+          }}
+        >
+          <div
+            ref={cloudDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cloud-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <HardDrive className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="cloud-dialog-title" className="text-base font-bold text-white">
                     Local Desktop Blueprints &amp; Portable Backups
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -3337,13 +3412,25 @@ ${slicesFormatted}
           DESKTOP AI SETTINGS MODAL (GEMINI API KEY)
          ==================================================================== */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSettingsModalOpen(false);
+          }}
+        >
+          <div
+            ref={settingsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-dialog-title"
+            tabIndex={-1}
+            className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <KeyRound className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h2 className="text-base font-bold text-white">
+                  <h2 id="settings-dialog-title" className="text-base font-bold text-white">
                     Desktop AI Settings (Optional)
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -3401,7 +3488,7 @@ ${slicesFormatted}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
-              {geminiSettings.source === 'stored' && (
+              {(geminiSettings.source === 'stored' || geminiSettings.source === 'memory') && (
                 <button
                   onClick={() => handleSaveGeminiKey(true)}
                   disabled={isSavingSettings}
@@ -3428,7 +3515,7 @@ ${slicesFormatted}
       {presetsModalOpen && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={(e) => {
+          onMouseDown={(e) => {
             if (e.target === e.currentTarget) setPresetsModalOpen(false);
           }}
         >

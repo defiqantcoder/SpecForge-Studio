@@ -1,5 +1,6 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, safeStorage, shell } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -78,13 +79,18 @@ function getSettingsPath(): string {
 
 interface StoredSettings {
   geminiKeyEncrypted?: string;
-  geminiKeyPlain?: string;
 }
 
 /**
- * Reads the configured Gemini API key from OS-encrypted storage or GEMINI_API_KEY env var.
+ * Process-memory-only fallback when OS keychain encryption (safeStorage) is unavailable.
+ * Never persisted to disk in plaintext.
  */
-function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'none' } {
+let inMemoryGeminiKey = '';
+
+/**
+ * Reads the configured Gemini API key from OS-encrypted storage, in-memory session storage, or GEMINI_API_KEY env var.
+ */
+function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'memory' | 'none' } {
   try {
     const settingsPath = getSettingsPath();
     if (fs.existsSync(settingsPath)) {
@@ -93,12 +99,13 @@ function readStoredGeminiKey(): { key: string; source: 'stored' | 'env' | 'none'
         const decrypted = safeStorage.decryptString(Buffer.from(raw.geminiKeyEncrypted, 'base64'));
         if (decrypted.trim()) return { key: decrypted.trim(), source: 'stored' };
       }
-      if (raw.geminiKeyPlain && raw.geminiKeyPlain.trim()) {
-        return { key: raw.geminiKeyPlain.trim(), source: 'stored' };
-      }
     }
   } catch (err) {
     console.warn('Failed to read stored Gemini key:', err);
+  }
+
+  if (inMemoryGeminiKey) {
+    return { key: inMemoryGeminiKey, source: 'memory' };
   }
 
   const envKey = process.env.GEMINI_API_KEY?.trim() || '';
@@ -119,36 +126,45 @@ function maskKey(key: string): string {
 }
 
 /**
- * Atomically replaces settings and removes temporary data if any write step fails.
+ * Atomically writes a file using an exclusive collision-free temporary file with owner-only permissions.
  */
-function writeSettingsAtomically(settingsPath: string, payload: StoredSettings): void {
-  const tempPath = `${settingsPath}.tmp`;
+function atomicWriteFileSync(filePath: string, content: string, mode?: number): void {
+  const tempPath = `${filePath}.tmp.${randomUUID()}`;
+  let created = false;
   try {
-    fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 });
-    fs.chmodSync(tempPath, 0o600);
-    fs.renameSync(tempPath, settingsPath);
-    fs.chmodSync(settingsPath, 0o600);
-  } catch (error) {
+    const fd = fs.openSync(tempPath, 'wx', mode);
+    created = true;
     try {
-      fs.unlinkSync(tempPath);
-    } catch {
-      // Cleanup must not replace the original write error.
+      fs.writeFileSync(fd, content, 'utf8');
+    } finally {
+      fs.closeSync(fd);
     }
-    throw error;
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    try {
+      if (created) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch {
+      // Preserve the original write failure
+    }
+    throw err;
   }
 }
 
 /**
  * Persists or clears the Gemini API key in userData using Electron safeStorage when available.
+ * Refuses unencrypted plaintext disk persistence when OS keychain encryption is unavailable,
+ * keeping the key in process memory only for the active session.
  */
 function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
   const trimmed = apiKey.trim();
   const settingsPath = getSettingsPath();
-  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 
   if (!trimmed) {
+    inMemoryGeminiKey = '';
     if (fs.existsSync(settingsPath)) {
-      writeSettingsAtomically(settingsPath, {});
+      atomicWriteFileSync(settingsPath, '{}', 0o600);
     }
     const envFallback = process.env.GEMINI_API_KEY?.trim() || '';
     return {
@@ -158,15 +174,27 @@ function writeStoredGeminiKey(apiKey: string): GeminiSettingsInfo {
     };
   }
 
-  const payload: StoredSettings = {};
-  if (safeStorage.isEncryptionAvailable()) {
-    payload.geminiKeyEncrypted = safeStorage.encryptString(trimmed).toString('base64');
-  } else {
-    payload.geminiKeyPlain = trimmed;
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.warn(
+      'OS keychain encryption (safeStorage) is unavailable. Refusing unencrypted disk persistence for Gemini API key; keeping key in process memory only.'
+    );
+    inMemoryGeminiKey = trimmed;
+    return {
+      hasKey: true,
+      source: 'memory',
+      maskedKey: maskKey(trimmed),
+      warning:
+        'OS keychain encryption is unavailable. API key was NOT written to disk and is kept in process memory for this session only.'
+    };
   }
 
-  writeSettingsAtomically(settingsPath, payload);
+  inMemoryGeminiKey = '';
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  const payload: StoredSettings = {
+    geminiKeyEncrypted: safeStorage.encryptString(trimmed).toString('base64')
+  };
 
+  atomicWriteFileSync(settingsPath, JSON.stringify(payload, null, 2), 0o600);
   return {
     hasKey: true,
     source: 'stored',

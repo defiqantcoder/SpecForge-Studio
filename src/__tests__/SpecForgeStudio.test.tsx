@@ -538,6 +538,8 @@ describe('SpecForgeStudio Desktop UI', () => {
     expect(typeof copiedMarkdown).toBe('string');
     expect(copiedMarkdown).toContain('Full Architectural & SDD Specification Report');
     expect(copiedMarkdown).toContain('## 📋 1. Project Overview & Target Stack');
+    expect(copiedMarkdown).toContain('- **Target Surface**: `web`');
+    expect(copiedMarkdown).not.toContain('Target Surface**: `undefined`');
     expect(copiedMarkdown).toContain('## 🎯 2. 5-Section Task Prompt (`TASK_PROMPT.md`)');
     expect(copiedMarkdown).toContain('## 🤖 3. Repository Agent Contract (`AGENTS.md`)');
     expect(copiedMarkdown).toContain(
@@ -597,5 +599,54 @@ describe('SpecForgeStudio Desktop UI', () => {
       expect(focusedEl).toBeTruthy();
       expect(document.activeElement).toBe(focusedEl);
     });
+  });
+
+  it('displays a confirmation prompt when resetting or loading a preset with unsaved changes', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    render(<SpecForgeStudio />);
+
+    await waitFor(() => {
+      expect(mockApi.listBlueprints).toHaveBeenCalled();
+    });
+
+    const ideaTextarea = screen.getByLabelText(/What should your app do\?/i) as HTMLTextAreaElement;
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Draft with unsaved changes' }
+    });
+
+    // Try Resetting (Cancel the confirm)
+    confirmSpy.mockReturnValueOnce(false);
+    const savedProjectsBtn = screen.getByRole('button', { name: /📂 Saved Projects \(0\)/i });
+    fireEvent.click(savedProjectsBtn);
+    const resetBtn = screen.getByRole('button', { name: /Reset to Default/i });
+    fireEvent.click(resetBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes in your active draft. Overwrite?');
+    expect(ideaTextarea.value).toBe('Draft with unsaved changes');
+
+    // Save preset so we can test Load guard
+    const presetNameInput = screen.getByLabelText('Preset Name');
+    fireEvent.change(presetNameInput, { target: { value: 'My Unsaved Draft Preset' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save Current as Preset/i }));
+
+    // Edit again so draft diverges from saved baseline
+    fireEvent.change(ideaTextarea, {
+      target: { value: 'Even more unsaved changes' }
+    });
+
+    // Try Loading (Cancel)
+    confirmSpy.mockReturnValueOnce(false);
+    const loadPresetBtn = screen.getByRole('button', { name: /Load preset My Unsaved Draft Preset/i });
+    fireEvent.click(loadPresetBtn);
+
+    expect(confirmSpy).toHaveBeenCalledWith('You have unsaved changes in your active draft. Overwrite?');
+    expect(ideaTextarea.value).toBe('Even more unsaved changes');
+
+    // Try Loading (Confirm)
+    confirmSpy.mockReturnValueOnce(true);
+    fireEvent.click(loadPresetBtn);
+    expect(ideaTextarea.value).toBe('Draft with unsaved changes');
+
+    confirmSpy.mockRestore();
   });
 });
